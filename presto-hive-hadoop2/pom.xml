@@ -20,6 +20,7 @@
         <dependency>
             <groupId>io.prestosql</groupId>
             <artifactId>presto-hive</artifactId>
+            <scope>compile</scope>
         </dependency>
 
         <dependency>

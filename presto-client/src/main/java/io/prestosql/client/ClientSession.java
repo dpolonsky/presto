@@ -15,7 +15,9 @@ package io.prestosql.client;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.net.HostAndPort;
 import io.airlift.units.Duration;
+import org.apache.commons.codec.binary.StringUtils;
 
 import java.net.URI;
 import java.nio.charset.CharsetEncoder;
@@ -51,6 +53,7 @@ public class ClientSession
     private final Map<String, String> extraCredentials;
     private final String transactionId;
     private final Duration clientRequestTimeout;
+    private final HostAndPort arrowServer;
 
     public static Builder builder(ClientSession clientSession)
     {
@@ -66,6 +69,7 @@ public class ClientSession
 
     public ClientSession(
             URI server,
+            HostAndPort arrowServer,
             String user,
             String source,
             Optional<String> traceToken,
@@ -85,6 +89,7 @@ public class ClientSession
             Duration clientRequestTimeout)
     {
         this.server = requireNonNull(server, "server is null");
+        this.arrowServer = arrowServer;
         this.user = user;
         this.source = source;
         this.traceToken = requireNonNull(traceToken, "traceToken is null");
@@ -135,6 +140,15 @@ public class ClientSession
     public URI getServer()
     {
         return server;
+    }
+
+    public HostAndPort getArrowServer()
+    {
+        return arrowServer;
+    }
+
+    public boolean hasArrow(){
+        return !(arrowServer == null || "".equals(arrowServer.getHost()));
     }
 
     public String getUser()
@@ -253,6 +267,7 @@ public class ClientSession
     public static final class Builder
     {
         private URI server;
+        private HostAndPort arrowServer;
         private String user;
         private String source;
         private Optional<String> traceToken;
@@ -275,6 +290,7 @@ public class ClientSession
         {
             requireNonNull(clientSession, "clientSession is null");
             server = clientSession.getServer();
+            arrowServer = clientSession.getArrowServer();
             user = clientSession.getUser();
             source = clientSession.getSource();
             traceToken = clientSession.getTraceToken();
@@ -352,6 +368,7 @@ public class ClientSession
         {
             return new ClientSession(
                     server,
+                    arrowServer,
                     user,
                     source,
                     traceToken,

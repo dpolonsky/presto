@@ -23,6 +23,7 @@ import io.airlift.airline.Option;
 import io.airlift.units.Duration;
 import io.prestosql.client.ClientSession;
 
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.ZoneId;
@@ -49,6 +50,9 @@ public class ClientOptions
 
     @Option(name = "--server", title = "server", description = "Presto server location (default: localhost:8080)")
     public String server = "localhost:8080";
+
+    @Option(name = "--arrow-server", title = "arrow-server", description = "Presto arrow server location, optional (localhost:47470)")
+    public String arrowServer;
 
     @Option(name = "--krb5-service-principal-pattern", title = "krb5 remote service principal pattern", description = "Remote kerberos service principal pattern (default: ${SERVICE}@${HOST})")
     public String krb5ServicePrincipalPattern = "${SERVICE}@${HOST}";
@@ -170,6 +174,7 @@ public class ClientOptions
     {
         return new ClientSession(
                 parseServer(server),
+                parseArrowServer(arrowServer),
                 user,
                 source,
                 Optional.ofNullable(traceToken),
@@ -203,6 +208,12 @@ public class ClientOptions
         catch (URISyntaxException e) {
             throw new IllegalArgumentException(e);
         }
+    }
+
+    public static HostAndPort parseArrowServer(String server)
+    {
+        server = server.toLowerCase(ENGLISH);
+        return HostAndPort.fromString(server);
     }
 
     public static Set<String> parseClientTags(String clientTagsString)

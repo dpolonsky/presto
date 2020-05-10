@@ -19,9 +19,13 @@ import io.prestosql.client.OkHttpUtil;
 import io.prestosql.client.SocketChannelSocketFactory;
 import io.prestosql.client.StatementClient;
 import okhttp3.OkHttpClient;
+import org.apache.arrow.flight.FlightClient;
+import org.apache.arrow.flight.Location;
+import org.apache.arrow.memory.RootAllocator;
 
 import java.io.Closeable;
 import java.io.File;
+import java.io.InputStream;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -47,6 +51,7 @@ public class QueryRunner
     private final boolean debug;
     private final OkHttpClient httpClient;
     private final Consumer<OkHttpClient.Builder> sslSetup;
+    private final FlightClient flightClient;
 
     public QueryRunner(
             ClientSession session,
@@ -105,6 +110,22 @@ public class QueryRunner
         }
 
         this.httpClient = builder.build();
+        if ( session.hasArrow()) {
+            Location location = Location.forGrpcInsecure(session.getArrowServer().getHost(),
+                    session.getArrowServer().getPort());
+            if (insecureSsl) {
+//            InputStream certStream = certs();
+//            this.flightClient = FlightClient.builder()
+//                    .allocator(allocator)
+//                    .location(location)
+//                    .useTls()
+//                    .trustedCertificates(certStream)
+//                    .build();
+            }
+            this.flightClient = FlightClient.builder(new RootAllocator(Integer.MAX_VALUE), location).build();
+        }else{
+            flightClient = null;
+        }
     }
 
     public ClientSession getSession()
@@ -137,8 +158,7 @@ public class QueryRunner
         OkHttpClient.Builder builder = httpClient.newBuilder();
         sslSetup.accept(builder);
         OkHttpClient client = builder.build();
-
-        return newStatementClient(client, session, query);
+        return newStatementClient(client, flightClient, session, query);
     }
 
     @Override

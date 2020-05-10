@@ -25,6 +25,7 @@ import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.SQLWarning;
 import java.sql.Statement;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -54,9 +55,20 @@ public class PrestoStatement
     private final AtomicReference<Optional<Consumer<QueryStats>>> progressCallback = new AtomicReference<>(Optional.empty());
     private final Consumer<QueryStats> progressConsumer = value -> progressCallback.get().ifPresent(callback -> callback.accept(value));
 
+    // statement level parameters
+    private final Map<String, String> statementParametersMap = new HashMap<>();
+
     PrestoStatement(PrestoConnection connection)
     {
         this.connection = new AtomicReference<>(requireNonNull(connection, "connection is null"));
+        verifyArrowSupport();
+    }
+
+    private static boolean validFetchDirection(int direction)
+    {
+        return (direction == ResultSet.FETCH_FORWARD) ||
+                (direction == ResultSet.FETCH_REVERSE) ||
+                (direction == ResultSet.FETCH_UNKNOWN);
     }
 
     public void setProgressMonitor(Consumer<QueryStats> progressMonitor)
@@ -67,6 +79,13 @@ public class PrestoStatement
     public void clearProgressMonitor()
     {
         progressCallback.set(Optional.empty());
+    }
+
+    private void verifyArrowSupport()
+    {
+        if (PrestoDriver.isDisableArrowResultFormat()) {
+            statementParametersMap.put("JDBC_QUERY_RESULT_FORMAT", "JSON");
+        }
     }
 
     @Override
@@ -118,18 +137,18 @@ public class PrestoStatement
     }
 
     @Override
+    public void setMaxRows(int max)
+            throws SQLException
+    {
+        setLargeMaxRows(max);
+    }
+
+    @Override
     public long getLargeMaxRows()
             throws SQLException
     {
         checkOpen();
         return maxRows.get();
-    }
-
-    @Override
-    public void setMaxRows(int max)
-            throws SQLException
-    {
-        setLargeMaxRows(max);
     }
 
     @Override
@@ -214,6 +233,7 @@ public class PrestoStatement
         if (queryTimeoutSeconds.get() > 0) {
             sessionProperties.put("query_max_run_time", queryTimeoutSeconds.get() + "s");
         }
+        sessionProperties.putAll(statementParametersMap);
         return sessionProperties.build();
     }
 
@@ -246,8 +266,9 @@ public class PrestoStatement
             executingClient.set(client);
             WarningsManager warningsManager = new WarningsManager();
             currentWarningsManager.set(Optional.of(warningsManager));
-            resultSet = new PrestoResultSet(client, maxRows.get(), progressConsumer, warningsManager);
+            //            resultSet = new PrestoResultSet(client, maxRows.get(), progressConsumer, warningsManager);
 
+            resultSet = ResultSetFactory.getResultSet(client, maxRows.get(), progressConsumer, warningsManager);
             // check if this is a query
             if (client.currentStatusInfo().getUpdateType() == null) {
                 currentResult.set(resultSet);
@@ -325,6 +346,14 @@ public class PrestoStatement
     }
 
     @Override
+    public int getFetchDirection()
+            throws SQLException
+    {
+        checkOpen();
+        return ResultSet.FETCH_FORWARD;
+    }
+
+    @Override
     public void setFetchDirection(int direction)
             throws SQLException
     {
@@ -336,11 +365,11 @@ public class PrestoStatement
     }
 
     @Override
-    public int getFetchDirection()
+    public int getFetchSize()
             throws SQLException
     {
         checkOpen();
-        return ResultSet.FETCH_FORWARD;
+        return fetchSize.get();
     }
 
     @Override
@@ -352,14 +381,6 @@ public class PrestoStatement
             throw new SQLException("Fetch size must be positive");
         }
         fetchSize.set(rows);
-    }
-
-    @Override
-    public int getFetchSize()
-            throws SQLException
-    {
-        checkOpen();
-        return fetchSize.get();
     }
 
     @Override
@@ -532,19 +553,19 @@ public class PrestoStatement
     }
 
     @Override
-    public void setPoolable(boolean poolable)
-            throws SQLException
-    {
-        checkOpen();
-        // ignore: statement pooling not supported
-    }
-
-    @Override
     public boolean isPoolable()
             throws SQLException
     {
         checkOpen();
         return false;
+    }
+
+    @Override
+    public void setPoolable(boolean poolable)
+            throws SQLException
+    {
+        checkOpen();
+        // ignore: statement pooling not supported
     }
 
     @Override
@@ -631,12 +652,5 @@ public class PrestoStatement
         if (resultSet != null) {
             resultSet.close();
         }
-    }
-
-    private static boolean validFetchDirection(int direction)
-    {
-        return (direction == ResultSet.FETCH_FORWARD) ||
-                (direction == ResultSet.FETCH_REVERSE) ||
-                (direction == ResultSet.FETCH_UNKNOWN);
     }
 }

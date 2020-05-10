@@ -29,6 +29,9 @@ import io.prestosql.client.QueryError;
 import io.prestosql.client.StatementClient;
 import io.prestosql.client.StatementStats;
 import okhttp3.OkHttpClient;
+import org.apache.arrow.flight.FlightClient;
+import org.apache.arrow.flight.Location;
+import org.apache.arrow.memory.RootAllocator;
 
 import java.io.Closeable;
 import java.net.URI;

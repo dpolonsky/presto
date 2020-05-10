@@ -37,6 +37,7 @@ import io.prestosql.client.ServerInfo;
 import io.prestosql.connector.ConnectorManager;
 import io.prestosql.connector.system.SystemConnectorModule;
 import io.prestosql.dispatcher.DispatchManager;
+import io.prestosql.dispatcher.DispatcherConfig;
 import io.prestosql.event.SplitMonitor;
 import io.prestosql.execution.ExecutionFailureInfo;
 import io.prestosql.execution.ExplainAnalyzeContext;
@@ -87,6 +88,8 @@ import io.prestosql.operator.LookupJoinOperators;
 import io.prestosql.operator.OperatorStats;
 import io.prestosql.operator.PagesIndex;
 import io.prestosql.operator.index.IndexJoinLookupStats;
+import io.prestosql.server.arrow.ArrowFlightServer;
+import io.prestosql.server.arrow.ArrowServerConfig;
 import io.prestosql.server.remotetask.HttpLocationFactory;
 import io.prestosql.spi.PageIndexerFactory;
 import io.prestosql.spi.PageSorter;
@@ -182,6 +185,12 @@ public class ServerMainModule
         else {
             install(new WorkerModule());
         }
+
+        configBinder(binder).bindConfigDefaults(ArrowServerConfig.class, arrowServerConfig -> {
+            arrowServerConfig.setArrowServerPort(47470);
+        });
+        configBinder(binder).bindConfig(ArrowServerConfig.class);
+        binder.bind(ArrowFlightServer.class).in(Scopes.SINGLETON);
 
         configBinder(binder).bindConfigDefaults(HttpServerConfig.class, httpServerConfig -> {
             httpServerConfig.setAdminEnabled(false);

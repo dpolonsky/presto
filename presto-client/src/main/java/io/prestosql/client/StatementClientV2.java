@@ -20,21 +20,18 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import io.airlift.json.JsonCodec;
 import io.airlift.units.Duration;
-import io.grpc.BindableService;
-import io.grpc.ManagedChannel;
-import io.grpc.inprocess.InProcessChannelBuilder;
 import okhttp3.Headers;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
+import org.apache.arrow.flight.Criteria;
 import org.apache.arrow.flight.FlightClient;
-import org.apache.arrow.flight.Location;
-import org.apache.arrow.flight.NoOpFlightProducer;
-import org.apache.arrow.flight.auth.ServerAuthHandler;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.flight.FlightDescriptor;
+import org.apache.arrow.flight.FlightInfo;
+import org.apache.arrow.flight.FlightStream;
+import org.apache.arrow.flight.Ticket;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
@@ -51,8 +48,6 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -94,18 +89,19 @@ import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 @ThreadSafe
-class StatementClientV1
+class StatementClientV2
         implements StatementClient
 {
     private static final MediaType MEDIA_TYPE_TEXT = MediaType.parse("text/plain; charset=utf-8");
     private static final JsonCodec<QueryResults> QUERY_RESULTS_CODEC = jsonCodec(QueryResults.class);
 
     private static final Splitter SESSION_HEADER_SPLITTER = Splitter.on('=').limit(2).trimResults();
-    private static final String USER_AGENT_VALUE = StatementClientV1.class.getSimpleName() +
+    private static final String USER_AGENT_VALUE = StatementClientV2.class.getSimpleName() +
             "/" +
-            firstNonNull(StatementClientV1.class.getPackage().getImplementationVersion(), "unknown");
+            firstNonNull(StatementClientV2.class.getPackage().getImplementationVersion(), "unknown");
 
     private final OkHttpClient httpClient;
+    private FlightClient flightClient;
     private final String query;
     private final AtomicReference<QueryResults> currentResults = new AtomicReference<>();
     private final AtomicReference<String> setCatalog = new AtomicReference<>();
@@ -125,13 +121,14 @@ class StatementClientV1
 
     private final AtomicReference<State> state = new AtomicReference<>(State.RUNNING);
 
-    public StatementClientV1(OkHttpClient httpClient,ClientSession session, String query)
+    public StatementClientV2(OkHttpClient httpClient, FlightClient flightClient, ClientSession session, String query)
     {
         requireNonNull(httpClient, "httpClient is null");
         requireNonNull(session, "session is null");
         requireNonNull(query, "query is null");
 
         this.httpClient = httpClient;
+        this.flightClient = flightClient;
         this.timeZone = session.getTimeZone();
         this.query = query;
         this.requestTimeoutNanos = session.getClientRequestTimeout();
@@ -399,6 +396,16 @@ class StatementClientV1
 
             JsonResponse<QueryResults> response;
             try {
+                Iterable<FlightInfo> flightInfos = flightClient.listFlights(Criteria.ALL);
+                System.out.println(flightInfos.iterator().next().toString());
+                try (final FlightStream s = flightClient.getStream(new Ticket(request.url().toString().getBytes()))) {
+                    while (s.next()) {
+                        System.out.println(s.getRoot().getRowCount());
+                    }
+                }
+                catch (Exception e) {
+                    e.printStackTrace();
+                }
                 response = JsonResponse.execute(QUERY_RESULTS_CODEC, httpClient, request);
             }
             catch (RuntimeException e) {

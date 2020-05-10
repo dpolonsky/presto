@@ -14,6 +14,7 @@
 package io.prestosql.client;
 
 import okhttp3.OkHttpClient;
+import org.apache.arrow.flight.FlightClient;
 
 public final class StatementClientFactory
 {
@@ -21,6 +22,15 @@ public final class StatementClientFactory
 
     public static StatementClient newStatementClient(OkHttpClient httpClient, ClientSession session, String query)
     {
-        return new StatementClientV1(httpClient, session, query);
+        return newStatementClient(httpClient, null, session, query);
+    }
+
+    public static StatementClient newStatementClient(OkHttpClient httpClient, FlightClient flightClient, ClientSession session, String query)
+    {
+        if ( flightClient == null) {
+            return new StatementClientV1(httpClient, session, query);
+        }else{
+            return new StatementClientV2(httpClient, flightClient, session, query);
+        }
     }
 }

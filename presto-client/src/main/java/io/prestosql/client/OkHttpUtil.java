@@ -218,7 +218,6 @@ public final class OkHttpUtil
             // create SSLContext
             SSLContext sslContext = SSLContext.getInstance("TLS");
             sslContext.init(keyManagers, new TrustManager[] {trustManager}, null);
-
             clientBuilder.sslSocketFactory(sslContext.getSocketFactory(), trustManager);
         }
         catch (GeneralSecurityException | IOException e) {

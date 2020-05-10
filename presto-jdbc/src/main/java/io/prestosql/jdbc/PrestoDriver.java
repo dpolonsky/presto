@@ -43,31 +43,39 @@ public class PrestoDriver
 
     private static final String DRIVER_URL_START = "jdbc:presto:";
 
+    private static boolean disableArrowResultFormat;
+    private static String disableArrowResultFormatMessage;
     private final OkHttpClient httpClient = new OkHttpClient.Builder()
             .addInterceptor(userAgent(DRIVER_NAME + "/" + DRIVER_VERSION))
             .socketFactory(new SocketChannelSocketFactory())
             .build();
 
-    static {
-        String version = nullToEmpty(PrestoDriver.class.getPackage().getImplementationVersion());
-        Matcher matcher = Pattern.compile("^(\\d+)(\\.(\\d+))?($|[.-])").matcher(version);
-        if (!matcher.find()) {
-            DRIVER_VERSION = "unknown";
-            DRIVER_VERSION_MAJOR = 0;
-            DRIVER_VERSION_MINOR = 0;
-        }
-        else {
-            DRIVER_VERSION = version;
-            DRIVER_VERSION_MAJOR = parseInt(matcher.group(1));
-            DRIVER_VERSION_MINOR = parseInt(firstNonNull(matcher.group(3), "0"));
-        }
-
+    /**
+     * try to initialize Arrow support
+     * if fails, JDBC is going to use the legacy format
+     */
+    private static void initializeArrowSupport()
+    {
         try {
-            DriverManager.registerDriver(new PrestoDriver());
+            // this is required to enable direct memory usage for Arrow buffers in Java
+            disableArrowResultFormat = false;
+            System.setProperty("io.netty.tryReflectionSetAccessible", "true");
         }
-        catch (SQLException e) {
-            throw new RuntimeException(e);
+        catch (Throwable t) {
+            // fail to enable required feature for Arrow
+            disableArrowResultFormat = true;
+            disableArrowResultFormatMessage = t.getLocalizedMessage();
         }
+    }
+
+    public static boolean isDisableArrowResultFormat()
+    {
+        return disableArrowResultFormat;
+    }
+
+    public static String getDisableArrowResultFormatMessage()
+    {
+        return disableArrowResultFormatMessage;
     }
 
     @Override
@@ -137,5 +145,29 @@ public class PrestoDriver
     {
         // TODO: support java.util.Logging
         throw new SQLFeatureNotSupportedException();
+    }
+
+    static {
+        String version = nullToEmpty(PrestoDriver.class.getPackage().getImplementationVersion());
+        Matcher matcher = Pattern.compile("^(\\d+)(\\.(\\d+))?($|[.-])").matcher(version);
+        if (!matcher.find()) {
+            DRIVER_VERSION = "unknown";
+            DRIVER_VERSION_MAJOR = 0;
+            DRIVER_VERSION_MINOR = 0;
+        }
+        else {
+            DRIVER_VERSION = version;
+            DRIVER_VERSION_MAJOR = parseInt(matcher.group(1));
+            DRIVER_VERSION_MINOR = parseInt(firstNonNull(matcher.group(3), "0"));
+        }
+
+        try {
+            DriverManager.registerDriver(new PrestoDriver());
+        }
+        catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        initializeArrowSupport();
     }
 }

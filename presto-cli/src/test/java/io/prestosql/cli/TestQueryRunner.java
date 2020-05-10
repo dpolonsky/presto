@@ -16,6 +16,7 @@ package io.prestosql.cli;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.net.HostAndPort;
 import io.airlift.json.JsonCodec;
 import io.airlift.units.Duration;
 import io.prestosql.client.ClientSession;
@@ -105,6 +106,7 @@ public class TestQueryRunner
     {
         return new ClientSession(
                 server.url("/").uri(),
+                HostAndPort.fromHost("localhost:8080"),
                 "user",
                 "source",
                 Optional.empty(),
