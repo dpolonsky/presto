@@ -29,6 +29,10 @@ Resource Group Properties
 * ``maxQueued`` (required): maximum number of queued queries. Once this limit is reached
   new queries are rejected.
 
+* ``softConcurrencyLimit`` (optional): number of concurrently running queries after which
+  new queries will only run if all peer resource groups below their soft limits are ineligible
+  or if all eligible peers are above soft limits.
+
 * ``hardConcurrencyLimit`` (required): maximum number of running queries.
 
 * ``softMemoryLimit`` (required): maximum amount of distributed memory this
@@ -72,6 +76,8 @@ Selector Rules
 --------------
 
 * ``user`` (optional): regex to match against user name.
+
+* ``userGroup`` (optional): regex to match against every user group the user belongs to.
 
 * ``source`` (optional): regex to match against source string.
 
@@ -124,14 +130,16 @@ There are four selectors, that define which queries run in which resource group:
 
   * The first selector matches queries from ``bob`` and places them in the admin group.
 
-  * The second selector matches all data definition (DDL) queries from a source name that includes ``pipeline``
+  * The second selector matches queries from ``admin`` user group and places them in the admin group.
+
+  * The third selector matches all data definition (DDL) queries from a source name that includes ``pipeline``
     and places them in the ``global.data_definition`` group. This could help reduce queue times for this
     class of queries, since they are expected to be fast.
 
-  * The third selector matches queries from a source name that includes ``pipeline``, and places them in a
+  * The fourth selector matches queries from a source name that includes ``pipeline``, and places them in a
     dynamically-created per-user pipeline group under the ``global.pipeline`` group.
 
-  * The fourth selector matches queries that come from BI tools which have a source matching the regular
+  * The fifth selector matches queries that come from BI tools which have a source matching the regular
     expression ``jdbc#(?<toolname>.*)``, and have client provided tags that are a superset of ``hi-pri``.
     These are placed in a dynamically-created sub-group under the ``global.pipeline.tools`` group. The dynamic
     sub-group are created based on the named variable ``toolname``, which is extracted from the in the
@@ -144,7 +152,8 @@ There are four selectors, that define which queries run in which resource group:
 
 Together, these selectors implement the following policy:
 
-* The user ``bob`` is an admin and can run up to 50 concurrent queries.
+* The user ``bob`` and any user belonging to user group ``admin``
+  is an admin and can run up to 50 concurrent queries.
   Queries will be run based on user-provided priority.
 
 For the remaining users:

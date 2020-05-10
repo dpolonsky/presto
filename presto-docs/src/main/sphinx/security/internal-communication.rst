@@ -5,6 +5,23 @@ Secure Internal Communication
 The Presto cluster can be configured to use secured communication. Communication
 between Presto nodes can be secured with SSL/TLS.
 
+Internal Authentication
+-----------------------
+
+Requests between Presto nodes are authenticated using a shared secret. For secure
+internal communication, the shared secret must be configured on all nodes in the cluster:
+
+    .. code-block:: none
+
+        internal-communication.shared-secret=<secret>
+
+A large random key is recommended, and can be generated with the following Linux
+command:
+
+    .. code-block:: none
+
+        openssl rand 512 | base64
+
 Internal SSL/TLS configuration
 ------------------------------
 
@@ -112,26 +129,6 @@ To enable SSL/TLS for Presto internal communication, do the following:
         internal-communication.https.keystore.path=<keystore path>
         internal-communication.https.keystore.key=<keystore password>
 
-
-Internal SSL/TLS communication with Kerberos
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-If :doc:`Kerberos</security/server>` authentication is enabled, specify valid Kerberos
-credentials for the internal communication, in addition to the SSL/TLS properties.
-
-    .. code-block:: none
-
-        internal-communication.kerberos.enabled=true
-
-.. note::
-
-    The service name and keytab file used for internal Kerberos authentication is
-    taken from server Kerberos authentication properties, documented in :doc:`Kerberos</security/server>`,
-    ``http-server.authentication.krb5.service-name`` and ``http-server.authentication.krb5.keytab``
-    respectively. Make sure you have the Kerberos setup done on the worker nodes as well.
-    The Kerberos principal for internal communication is built from
-    ``http-server.authentication.krb5.service-name`` after appending it with the hostname of
-    the node where Presto is running on and default realm from Kerberos configuration.
 
 Performance with SSL/TLS enabled
 --------------------------------

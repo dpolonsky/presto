@@ -13,12 +13,13 @@
  */
 package io.prestosql.plugin.sqlserver;
 
-import io.prestosql.tests.AbstractTestIntegrationSmokeTest;
+import io.prestosql.testing.AbstractTestIntegrationSmokeTest;
+import io.prestosql.testing.QueryRunner;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
 
-import static io.airlift.tpch.TpchTable.ORDERS;
 import static io.prestosql.plugin.sqlserver.SqlServerQueryRunner.createSqlServerQueryRunner;
+import static io.prestosql.tpch.TpchTable.ORDERS;
 import static java.lang.String.format;
 import static org.testng.Assert.assertTrue;
 
@@ -26,17 +27,15 @@ import static org.testng.Assert.assertTrue;
 public class TestSqlServerIntegrationSmokeTest
         extends AbstractTestIntegrationSmokeTest
 {
-    private final TestingSqlServer sqlServer;
+    protected TestingSqlServer sqlServer;
 
-    public TestSqlServerIntegrationSmokeTest()
+    @Override
+    protected QueryRunner createQueryRunner()
+            throws Exception
     {
-        this(new TestingSqlServer());
-    }
-
-    public TestSqlServerIntegrationSmokeTest(TestingSqlServer testingSqlServer)
-    {
-        super(() -> createSqlServerQueryRunner(testingSqlServer, ORDERS));
-        this.sqlServer = testingSqlServer;
+        sqlServer = new TestingSqlServer();
+        sqlServer.start();
+        return createSqlServerQueryRunner(sqlServer, ORDERS);
     }
 
     @AfterClass(alwaysRun = true)
@@ -72,6 +71,26 @@ public class TestSqlServerIntegrationSmokeTest
         assertTrue(getQueryRunner().tableExists(getSession(), "test_view"));
         assertQuery("SELECT orderkey FROM test_view", "SELECT orderkey FROM orders");
         sqlServer.execute("DROP VIEW IF EXISTS test_view");
+    }
+
+    @Test
+    public void testColumnComment()
+            throws Exception
+    {
+        try (AutoCloseable ignoreTable = withTable("test_column_comment",
+                "(col1 bigint, col2 bigint, col3 bigint)")) {
+            sqlServer.execute("" +
+                    "EXEC sp_addextendedproperty " +
+                    " 'MS_Description', 'test comment', " +
+                    " 'Schema', 'dbo', " +
+                    " 'Table', 'test_column_comment', " +
+                    " 'Column', 'col1'");
+
+            // SQL Server JDBC driver doesn't support REMARKS for column comment https://github.com/Microsoft/mssql-jdbc/issues/646
+            assertQuery(
+                    "SELECT column_name, comment FROM information_schema.columns WHERE table_schema = 'dbo' AND table_name = 'test_column_comment'",
+                    "VALUES ('col1', null), ('col2', null), ('col3', null)");
+        }
     }
 
     @Test

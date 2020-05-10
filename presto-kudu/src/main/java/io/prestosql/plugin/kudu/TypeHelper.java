@@ -15,6 +15,7 @@ package io.prestosql.plugin.kudu;
 
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
+import io.prestosql.spi.PrestoException;
 import io.prestosql.spi.type.BigintType;
 import io.prestosql.spi.type.BooleanType;
 import io.prestosql.spi.type.CharType;
@@ -35,7 +36,10 @@ import org.apache.kudu.ColumnTypeAttributes;
 import org.apache.kudu.client.RowResult;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 
+import static io.prestosql.spi.StandardErrorCode.NOT_SUPPORTED;
+import static io.prestosql.spi.type.Decimals.decodeUnscaledValue;
 import static java.lang.Float.floatToRawIntBits;
 import static java.lang.Float.intBitsToFloat;
 
@@ -84,7 +88,7 @@ public final class TypeHelper
         if (type instanceof CharType) {
             return org.apache.kudu.Type.STRING;
         }
-        throw new IllegalStateException("Type mapping implemented for Presto type: " + type);
+        throw new PrestoException(NOT_SUPPORTED, "Unsupported type: " + type);
     }
 
     public static Type fromKuduColumn(ColumnSchema column)
@@ -156,7 +160,11 @@ public final class TypeHelper
             return ((Slice) nativeValue).toByteBuffer();
         }
         if (type instanceof DecimalType) {
-            return nativeValue;
+            DecimalType decimalType = (DecimalType) type;
+            if (decimalType.isShort()) {
+                return new BigDecimal(BigInteger.valueOf((long) nativeValue), decimalType.getScale());
+            }
+            return new BigDecimal(decodeUnscaledValue((Slice) nativeValue), decimalType.getScale());
         }
         throw new IllegalStateException("Back conversion not implemented for " + type);
     }

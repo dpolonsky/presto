@@ -23,10 +23,10 @@ import io.prestosql.plugin.hive.HiveHdfsConfiguration;
 import io.prestosql.plugin.hive.authentication.NoHdfsAuthentication;
 import io.prestosql.plugin.hive.metastore.HiveMetastore;
 import io.prestosql.plugin.hive.metastore.file.FileHiveMetastore;
+import io.prestosql.testing.AbstractTestQueryFramework;
+import io.prestosql.testing.DistributedQueryRunner;
 import io.prestosql.testing.MaterializedResult;
 import io.prestosql.testing.MaterializedRow;
-import io.prestosql.tests.AbstractTestQueryFramework;
-import io.prestosql.tests.DistributedQueryRunner;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -44,14 +44,8 @@ import static org.testng.Assert.assertEquals;
 public class TestIcebergSystemTables
         extends AbstractTestQueryFramework
 {
-    private static HiveMetastore metastore;
-
-    public TestIcebergSystemTables()
-    {
-        super(TestIcebergSystemTables::createQueryRunner);
-    }
-
-    private static DistributedQueryRunner createQueryRunner()
+    @Override
+    protected DistributedQueryRunner createQueryRunner()
             throws Exception
     {
         Session session = testSessionBuilder()
@@ -65,7 +59,7 @@ public class TestIcebergSystemTables
         HdfsConfiguration hdfsConfiguration = new HiveHdfsConfiguration(new HdfsConfigurationInitializer(hdfsConfig), ImmutableSet.of());
         HdfsEnvironment hdfsEnvironment = new HdfsEnvironment(hdfsConfiguration, hdfsConfig, new NoHdfsAuthentication());
 
-        metastore = new FileHiveMetastore(hdfsEnvironment, baseDir.toURI().toString(), "test");
+        HiveMetastore metastore = new FileHiveMetastore(hdfsEnvironment, baseDir.toURI().toString(), "test");
 
         queryRunner.installPlugin(new TestingIcebergPlugin(metastore));
         queryRunner.createCatalog("iceberg", "iceberg");
@@ -77,7 +71,8 @@ public class TestIcebergSystemTables
     public void setUp()
     {
         assertUpdate("CREATE SCHEMA test_schema");
-        assertUpdate("CREATE TABLE test_schema.test_table (_bigint BIGINT, _date DATE) WITH (partitioning = ARRAY['_date'])");
+        // "$partitions" tables with ORC file format are not fully supported yet. So we use Parquet here for testing
+        assertUpdate("CREATE TABLE test_schema.test_table (_bigint BIGINT, _date DATE) WITH (partitioning = ARRAY['_date'], format = 'Parquet')");
         assertUpdate("INSERT INTO test_schema.test_table VALUES (0, CAST('2019-09-08' AS DATE)), (1, CAST('2019-09-09' AS DATE)), (2, CAST('2019-09-09' AS DATE))", 3);
         assertUpdate("INSERT INTO test_schema.test_table VALUES (3, CAST('2019-09-09' AS DATE)), (4, CAST('2019-09-10' AS DATE)), (5, CAST('2019-09-10' AS DATE))", 3);
         assertQuery("SELECT count(*) FROM test_schema.test_table", "VALUES 6");
@@ -137,6 +132,39 @@ public class TestIcebergSystemTables
 
         assertQuery("SELECT operation FROM test_schema.\"test_table$snapshots\"", "VALUES 'append', 'append', 'append'");
         assertQuery("SELECT summary['total-records'] FROM test_schema.\"test_table$snapshots\"", "VALUES '0', '3', '6'");
+    }
+
+    @Test
+    public void testManifestsTable()
+    {
+        assertQuery("SHOW COLUMNS FROM test_schema.\"test_table$manifests\"",
+                "VALUES ('path', 'varchar', '', '')," +
+                        "('length', 'bigint', '', '')," +
+                        "('partition_spec_id', 'integer', '', '')," +
+                        "('added_snapshot_id', 'bigint', '', '')," +
+                        "('added_data_files_count', 'integer', '', '')," +
+                        "('existing_data_files_count', 'integer', '', '')," +
+                        "('deleted_data_files_count', 'integer', '', '')," +
+                        "('partitions', 'row(contains_null boolean, lower_bound varchar, upper_bound varchar)', '', '')");
+        assertQuerySucceeds("SELECT * FROM test_schema.\"test_table$manifests\"");
+    }
+
+    @Test
+    public void testFilesTable()
+    {
+        assertQuery("SHOW COLUMNS FROM test_schema.\"test_table$files\"",
+                "VALUES ('file_path', 'varchar', '', '')," +
+                        "('file_format', 'varchar', '', '')," +
+                        "('record_count', 'bigint', '', '')," +
+                        "('file_size_in_bytes', 'bigint', '', '')," +
+                        "('column_sizes', 'map(integer, bigint)', '', '')," +
+                        "('value_counts', 'map(integer, bigint)', '', '')," +
+                        "('null_value_counts', 'map(integer, bigint)', '', '')," +
+                        "('lower_bounds', 'map(integer, varchar)', '', '')," +
+                        "('upper_bounds', 'map(integer, varchar)', '', '')," +
+                        "('key_metadata', 'varbinary', '', '')," +
+                        "('split_offsets', 'array(bigint)', '', '')");
+        assertQuerySucceeds("SELECT * FROM test_schema.\"test_table$files\"");
     }
 
     @AfterClass(alwaysRun = true)

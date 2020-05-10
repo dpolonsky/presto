@@ -14,7 +14,6 @@
 package io.prestosql.sql.planner;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Primitives;
 import io.airlift.slice.DynamicSliceOutput;
 import io.airlift.slice.Slice;
@@ -44,11 +43,11 @@ import io.prestosql.sql.tree.QualifiedName;
 import io.prestosql.sql.tree.StringLiteral;
 
 import java.util.List;
-import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.prestosql.metadata.LiteralFunction.LITERAL_FUNCTION_NAME;
 import static io.prestosql.metadata.LiteralFunction.typeForMagicLiteral;
+import static io.prestosql.spi.predicate.Utils.nativeValueToBlock;
 import static io.prestosql.spi.type.BigintType.BIGINT;
 import static io.prestosql.spi.type.BooleanType.BOOLEAN;
 import static io.prestosql.spi.type.DateType.DATE;
@@ -67,7 +66,6 @@ import static java.util.Objects.requireNonNull;
 
 public final class LiteralEncoder
 {
-    private static final Set<Class<?>> SUPPORTED_PRIMITIVE_TYPES = ImmutableSet.of(boolean.class, long.class, double.class, Slice.class, Block.class);
     private final Metadata metadata;
 
     public LiteralEncoder(Metadata metadata)
@@ -88,18 +86,6 @@ public final class LiteralEncoder
             expressions.add(toExpression(object, type));
         }
         return expressions.build();
-    }
-
-    public static boolean canEncode(Object object, Type type)
-    {
-        if (object instanceof Expression) {
-            return true;
-        }
-
-        if (object == null) {
-            return true;
-        }
-        return SUPPORTED_PRIMITIVE_TYPES.contains(Primitives.unwrap(type.getJavaType()));
     }
 
     public Expression toExpression(Object object, Type type)
@@ -222,6 +208,14 @@ public final class LiteralEncoder
 
         if (type.equals(DATE)) {
             return new GenericLiteral("DATE", new SqlDate(toIntExact((Long) object)).toString());
+        }
+
+        // There is no automatic built in encoding for this Presto type, so instead the stack type is
+        // encoded as another Presto type.
+
+        // If the stack value is not a simple type, encode the stack value in a block
+        if (!type.getJavaType().isPrimitive() && type.getJavaType() != Slice.class && type.getJavaType() != Block.class) {
+            object = nativeValueToBlock(type, object);
         }
 
         if (object instanceof Block) {

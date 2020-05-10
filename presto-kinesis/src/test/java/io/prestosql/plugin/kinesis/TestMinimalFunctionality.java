@@ -26,7 +26,7 @@ import io.prestosql.spi.QueryId;
 import io.prestosql.spi.security.Identity;
 import io.prestosql.spi.type.BigintType;
 import io.prestosql.testing.MaterializedResult;
-import io.prestosql.tests.StandaloneQueryRunner;
+import io.prestosql.testing.StandaloneQueryRunner;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -100,7 +100,6 @@ public class TestMinimalFunctionality
     public void spinUp(String accessKey, String secretKey)
             throws Exception
     {
-        System.setProperty("com.amazonaws.sdk.disableCbor", "true");
         streamName = "test_" + UUID.randomUUID().toString().replaceAll("-", "_");
 
         embeddedKinesisStream.createStream(2, streamName);

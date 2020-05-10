@@ -126,7 +126,7 @@ public class IndexJoinOptimizer
                 if (leftIndexCandidate.isPresent()) {
                     // Sanity check that we can trace the path for the index lookup key
                     Map<Symbol, Symbol> trace = IndexKeyTracer.trace(leftIndexCandidate.get(), ImmutableSet.copyOf(leftJoinSymbols));
-                    checkState(!trace.isEmpty() && leftJoinSymbols.containsAll(trace.keySet()));
+                    checkState(!trace.isEmpty());
                 }
 
                 Optional<PlanNode> rightIndexCandidate = IndexSourceRewriter.rewriteWithIndex(
@@ -139,7 +139,7 @@ public class IndexJoinOptimizer
                 if (rightIndexCandidate.isPresent()) {
                     // Sanity check that we can trace the path for the index lookup key
                     Map<Symbol, Symbol> trace = IndexKeyTracer.trace(rightIndexCandidate.get(), ImmutableSet.copyOf(rightJoinSymbols));
-                    checkState(!trace.isEmpty() && rightJoinSymbols.containsAll(trace.keySet()));
+                    checkState(!trace.isEmpty());
                 }
 
                 switch (node.getType()) {
@@ -192,7 +192,21 @@ public class IndexJoinOptimizer
             }
 
             if (leftRewritten != node.getLeft() || rightRewritten != node.getRight()) {
-                return new JoinNode(node.getId(), node.getType(), leftRewritten, rightRewritten, node.getCriteria(), node.getOutputSymbols(), node.getFilter(), node.getLeftHashSymbol(), node.getRightHashSymbol(), node.getDistributionType(), node.isSpillable(), node.getDynamicFilters());
+                return new JoinNode(
+                        node.getId(),
+                        node.getType(),
+                        leftRewritten,
+                        rightRewritten,
+                        node.getCriteria(),
+                        node.getLeftOutputSymbols(),
+                        node.getRightOutputSymbols(),
+                        node.getFilter(),
+                        node.getLeftHashSymbol(),
+                        node.getRightHashSymbol(),
+                        node.getDistributionType(),
+                        node.isSpillable(),
+                        node.getDynamicFilters(),
+                        node.getReorderJoinStatsAndCost());
             }
             return node;
         }
@@ -306,8 +320,7 @@ public class IndexJoinOptimizer
                     node.getTable(),
                     context.getLookupSymbols(),
                     node.getOutputSymbols(),
-                    node.getAssignments(),
-                    simplifiedConstraint);
+                    node.getAssignments());
 
             Expression resultingPredicate = combineConjuncts(
                     metadata,
@@ -442,7 +455,7 @@ public class IndexJoinOptimizer
 
             public Context(Set<Symbol> lookupSymbols, AtomicBoolean success)
             {
-                checkArgument(!lookupSymbols.isEmpty(), "lookupSymbols can not be empty");
+                checkArgument(!lookupSymbols.isEmpty(), "lookupSymbols cannot be empty");
                 this.lookupSymbols = ImmutableSet.copyOf(requireNonNull(lookupSymbols, "lookupSymbols is null"));
                 this.success = requireNonNull(success, "success is null");
             }

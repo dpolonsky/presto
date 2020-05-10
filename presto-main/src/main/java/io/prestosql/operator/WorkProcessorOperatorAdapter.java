@@ -14,20 +14,23 @@
 package io.prestosql.operator;
 
 import com.google.common.util.concurrent.ListenableFuture;
-import io.prestosql.Session;
 import io.prestosql.execution.Lifespan;
 import io.prestosql.memory.context.MemoryTrackingContext;
 import io.prestosql.spi.Page;
+import io.prestosql.sql.planner.plan.PlanNodeId;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * This {@link WorkProcessorOperator} adapter allows to adapt {@link WorkProcessor} operators
+ * that require customization of input handling (e.g aggregation operators that want to skip extra
+ * buffering step or operators that require more sophisticated initial blocking condition).
+ * If such customization is not required, it's recommended to use {@link BasicWorkProcessorOperatorAdapter}
+ * instead.
+ */
 public class WorkProcessorOperatorAdapter
         implements Operator
 {
-    private final OperatorContext operatorContext;
-    private final AdapterWorkProcessorOperator workProcessorOperator;
-    private final WorkProcessor<Page> pages;
-
     public interface AdapterWorkProcessorOperator
             extends WorkProcessorOperator
     {
@@ -41,8 +44,101 @@ public class WorkProcessorOperatorAdapter
     public interface AdapterWorkProcessorOperatorFactory
             extends WorkProcessorOperatorFactory
     {
-        AdapterWorkProcessorOperator create(ProcessorContext processorContext);
+        AdapterWorkProcessorOperator createAdapterOperator(ProcessorContext processorContext);
+
+        AdapterWorkProcessorOperatorFactory duplicate();
     }
+
+    public static OperatorFactory createAdapterOperatorFactory(AdapterWorkProcessorOperatorFactory operatorFactory)
+    {
+        return new Factory(operatorFactory);
+    }
+
+    /**
+     * Provides dual {@link OperatorFactory} and {@link WorkProcessorOperatorFactory} interface.
+     */
+    private static class Factory
+            implements OperatorFactory, WorkProcessorOperatorFactory
+    {
+        final AdapterWorkProcessorOperatorFactory operatorFactory;
+
+        Factory(AdapterWorkProcessorOperatorFactory operatorFactory)
+        {
+            this.operatorFactory = requireNonNull(operatorFactory, "operatorFactory is null");
+        }
+
+        // Methods from OperatorFactory
+
+        @Override
+        public Operator createOperator(DriverContext driverContext)
+        {
+            OperatorContext operatorContext = driverContext.addOperatorContext(
+                    operatorFactory.getOperatorId(),
+                    operatorFactory.getPlanNodeId(),
+                    operatorFactory.getOperatorType());
+            return new WorkProcessorOperatorAdapter(operatorContext, operatorFactory);
+        }
+
+        @Override
+        public void noMoreOperators()
+        {
+            close();
+        }
+
+        @Override
+        public void noMoreOperators(Lifespan lifespan)
+        {
+            lifespanFinished(lifespan);
+        }
+
+        @Override
+        public OperatorFactory duplicate()
+        {
+            return new Factory(operatorFactory.duplicate());
+        }
+
+        // Methods from WorkProcessorOperatorFactory
+
+        @Override
+        public int getOperatorId()
+        {
+            return operatorFactory.getOperatorId();
+        }
+
+        @Override
+        public PlanNodeId getPlanNodeId()
+        {
+            return operatorFactory.getPlanNodeId();
+        }
+
+        @Override
+        public String getOperatorType()
+        {
+            return operatorFactory.getOperatorType();
+        }
+
+        @Override
+        public WorkProcessorOperator create(ProcessorContext processorContext, WorkProcessor<Page> sourcePages)
+        {
+            return operatorFactory.create(processorContext, sourcePages);
+        }
+
+        @Override
+        public void lifespanFinished(Lifespan lifespan)
+        {
+            operatorFactory.lifespanFinished(lifespan);
+        }
+
+        @Override
+        public void close()
+        {
+            operatorFactory.close();
+        }
+    }
+
+    private final OperatorContext operatorContext;
+    private final AdapterWorkProcessorOperator workProcessorOperator;
+    private final WorkProcessor<Page> pages;
 
     public WorkProcessorOperatorAdapter(OperatorContext operatorContext, AdapterWorkProcessorOperatorFactory workProcessorOperatorFactory)
     {
@@ -53,7 +149,7 @@ public class WorkProcessorOperatorAdapter
                 operatorContext.aggregateSystemMemoryContext());
         memoryTrackingContext.initializeLocalMemoryContexts(workProcessorOperatorFactory.getOperatorType());
         this.workProcessorOperator = requireNonNull(workProcessorOperatorFactory, "workProcessorOperatorFactory is null")
-                .create(new ProcessorContext(operatorContext.getSession(), memoryTrackingContext, operatorContext));
+                .createAdapterOperator(new ProcessorContext(operatorContext.getSession(), memoryTrackingContext, operatorContext));
         this.pages = workProcessorOperator.getOutputPages();
         operatorContext.setInfoSupplier(() -> workProcessorOperator.getOperatorInfo().orElse(null));
     }
@@ -117,49 +213,5 @@ public class WorkProcessorOperatorAdapter
             throws Exception
     {
         workProcessorOperator.close();
-    }
-
-    public static class ProcessorContext
-    {
-        private final Session session;
-        private final MemoryTrackingContext memoryTrackingContext;
-        private final DriverYieldSignal driverYieldSignal;
-        private final Lifespan lifespan;
-        private final SpillContext spillContext;
-
-        public ProcessorContext(Session session, MemoryTrackingContext memoryTrackingContext, OperatorContext operatorContext)
-        {
-            this.session = requireNonNull(session, "session is null");
-            this.memoryTrackingContext = requireNonNull(memoryTrackingContext, "memoryTrackingContext is null");
-            requireNonNull(operatorContext, "operatorContext is null");
-            this.driverYieldSignal = operatorContext.getDriverContext().getYieldSignal();
-            this.lifespan = operatorContext.getDriverContext().getLifespan();
-            this.spillContext = operatorContext.getSpillContext();
-        }
-
-        public Session getSession()
-        {
-            return session;
-        }
-
-        public MemoryTrackingContext getMemoryTrackingContext()
-        {
-            return memoryTrackingContext;
-        }
-
-        public DriverYieldSignal getDriverYieldSignal()
-        {
-            return driverYieldSignal;
-        }
-
-        public Lifespan getLifespan()
-        {
-            return lifespan;
-        }
-
-        public SpillContext getSpillContext()
-        {
-            return spillContext;
-        }
     }
 }

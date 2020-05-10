@@ -24,7 +24,6 @@ import io.prestosql.metadata.Split;
 import io.prestosql.operator.WorkProcessor.Transformation;
 import io.prestosql.operator.WorkProcessor.TransformationState;
 import io.prestosql.operator.WorkProcessorAssertion.Transform;
-import io.prestosql.operator.WorkProcessorOperatorAdapter.ProcessorContext;
 import io.prestosql.spi.Page;
 import io.prestosql.spi.connector.UpdatablePageSource;
 import io.prestosql.sql.planner.plan.PlanNodeId;
@@ -38,7 +37,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static io.airlift.units.DataSize.Unit.BYTE;
 import static io.prestosql.RowPagesBuilder.rowPagesBuilder;
 import static io.prestosql.execution.Lifespan.taskWide;
 import static io.prestosql.operator.WorkProcessorAssertion.transformationFrom;
@@ -67,7 +65,7 @@ public class TestWorkProcessorPipelineSourceOperator
         scheduledExecutor.shutdownNow();
     }
 
-    @Test(timeOut = 5000)
+    @Test(timeOut = 10_000)
     public void testWorkProcessorPipelineSourceOperator()
             throws InterruptedException
     {
@@ -192,13 +190,13 @@ public class TestWorkProcessorPipelineSourceOperator
 
         // assert source operator input stats are correct
         OperatorStats sourceOperatorStats = operatorStats.get(0);
-        assertEquals(sourceOperatorStats.getPhysicalInputDataSize(), new DataSize(1, BYTE));
+        assertEquals(sourceOperatorStats.getPhysicalInputDataSize(), DataSize.ofBytes(1));
         assertEquals(sourceOperatorStats.getPhysicalInputPositions(), 2);
 
-        assertEquals(sourceOperatorStats.getInternalNetworkInputDataSize(), new DataSize(3, BYTE));
+        assertEquals(sourceOperatorStats.getInternalNetworkInputDataSize(), DataSize.ofBytes(3));
         assertEquals(sourceOperatorStats.getInternalNetworkInputPositions(), 4);
 
-        assertEquals(sourceOperatorStats.getInputDataSize(), new DataSize(5, BYTE));
+        assertEquals(sourceOperatorStats.getInputDataSize(), DataSize.ofBytes(5));
         assertEquals(sourceOperatorStats.getInputPositions(), 6);
 
         assertEquals(sourceOperatorStats.getAddInputWall(), new Duration(7, NANOSECONDS));
@@ -235,7 +233,7 @@ public class TestWorkProcessorPipelineSourceOperator
         return getOnlyElement(rowPagesBuilder(BIGINT).addSequencePage(pageNumber, pageNumber).build());
     }
 
-    private class TestWorkProcessorSourceOperatorFactory
+    private static class TestWorkProcessorSourceOperatorFactory
             implements WorkProcessorSourceOperatorFactory, SourceOperatorFactory
     {
         final int operatorId;
@@ -300,7 +298,7 @@ public class TestWorkProcessorPipelineSourceOperator
         }
     }
 
-    private class TestWorkProcessorSourceOperator
+    private static class TestWorkProcessorSourceOperator
             implements WorkProcessorSourceOperator
     {
         final WorkProcessor<Page> pages;
@@ -323,7 +321,7 @@ public class TestWorkProcessorPipelineSourceOperator
         @Override
         public DataSize getPhysicalInputDataSize()
         {
-            return new DataSize(1, BYTE);
+            return DataSize.ofBytes(1);
         }
 
         @Override
@@ -335,7 +333,7 @@ public class TestWorkProcessorPipelineSourceOperator
         @Override
         public DataSize getInternalNetworkInputDataSize()
         {
-            return new DataSize(3, BYTE);
+            return DataSize.ofBytes(3);
         }
 
         @Override
@@ -347,7 +345,7 @@ public class TestWorkProcessorPipelineSourceOperator
         @Override
         public DataSize getInputDataSize()
         {
-            return new DataSize(5, BYTE);
+            return DataSize.ofBytes(5);
         }
 
         @Override
@@ -375,7 +373,7 @@ public class TestWorkProcessorPipelineSourceOperator
         }
     }
 
-    private class TestWorkProcessorOperatorFactory
+    private static class TestWorkProcessorOperatorFactory
             implements WorkProcessorOperatorFactory, OperatorFactory
     {
         final int operatorId;
@@ -434,7 +432,7 @@ public class TestWorkProcessorPipelineSourceOperator
         }
     }
 
-    private class TestWorkProcessorOperator
+    private static class TestWorkProcessorOperator
             implements WorkProcessorOperator
     {
         final WorkProcessor<Page> pages;
@@ -467,7 +465,7 @@ public class TestWorkProcessorPipelineSourceOperator
         }
     }
 
-    private class TestOperatorInfo
+    private static class TestOperatorInfo
             implements OperatorInfo
     {
         int count;

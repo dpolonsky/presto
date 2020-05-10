@@ -20,7 +20,6 @@ import io.prestosql.operator.LookupJoinOperators.JoinType;
 import io.prestosql.operator.LookupOuterOperator.LookupOuterOperatorFactory;
 import io.prestosql.operator.WorkProcessorOperatorAdapter.AdapterWorkProcessorOperator;
 import io.prestosql.operator.WorkProcessorOperatorAdapter.AdapterWorkProcessorOperatorFactory;
-import io.prestosql.operator.WorkProcessorOperatorAdapter.ProcessorContext;
 import io.prestosql.spi.Page;
 import io.prestosql.spi.type.Type;
 import io.prestosql.spiller.PartitioningSpillerFactory;
@@ -130,6 +129,35 @@ public class LookupJoinOperatorFactory
     }
 
     @Override
+    public Optional<OuterOperatorFactoryResult> createOuterOperatorFactory()
+    {
+        return outerOperatorFactoryResult;
+    }
+
+    // Methods from OperatorFactory
+
+    @Override
+    public Operator createOperator(DriverContext driverContext)
+    {
+        OperatorContext operatorContext = driverContext.addOperatorContext(getOperatorId(), getPlanNodeId(), getOperatorType());
+        return new WorkProcessorOperatorAdapter(operatorContext, this);
+    }
+
+    @Override
+    public void noMoreOperators()
+    {
+        close();
+    }
+
+    @Override
+    public void noMoreOperators(Lifespan lifespan)
+    {
+        lifespanFinished(lifespan);
+    }
+
+    // Methods from AdapterWorkProcessorOperatorFactory
+
+    @Override
     public int getOperatorId()
     {
         return operatorId;
@@ -150,6 +178,7 @@ public class LookupJoinOperatorFactory
     @Override
     public WorkProcessorOperator create(ProcessorContext processorContext, WorkProcessor<Page> sourcePages)
     {
+        checkState(!closed, "Factory is already closed");
         LookupSourceFactory lookupSourceFactory = joinBridgeManager.getJoinBridge(processorContext.getLifespan());
 
         joinBridgeManager.probeOperatorCreated(processorContext.getLifespan());
@@ -168,42 +197,9 @@ public class LookupJoinOperatorFactory
     }
 
     @Override
-    public Operator createOperator(DriverContext driverContext)
+    public AdapterWorkProcessorOperator createAdapterOperator(ProcessorContext processorContext)
     {
         checkState(!closed, "Factory is already closed");
-        OperatorContext operatorContext = driverContext.addOperatorContext(operatorId, planNodeId, getOperatorType());
-        return new WorkProcessorOperatorAdapter(operatorContext, this);
-    }
-
-    @Override
-    public void noMoreOperators()
-    {
-        checkState(!closed);
-        closed = true;
-        joinBridgeManager.probeOperatorFactoryClosedForAllLifespans();
-    }
-
-    @Override
-    public void noMoreOperators(Lifespan lifespan)
-    {
-        joinBridgeManager.probeOperatorFactoryClosed(lifespan);
-    }
-
-    @Override
-    public OperatorFactory duplicate()
-    {
-        return new LookupJoinOperatorFactory(this);
-    }
-
-    @Override
-    public Optional<OuterOperatorFactoryResult> createOuterOperatorFactory()
-    {
-        return outerOperatorFactoryResult;
-    }
-
-    @Override
-    public AdapterWorkProcessorOperator create(ProcessorContext processorContext)
-    {
         LookupSourceFactory lookupSourceFactory = joinBridgeManager.getJoinBridge(processorContext.getLifespan());
 
         joinBridgeManager.probeOperatorCreated(processorContext.getLifespan());
@@ -224,12 +220,20 @@ public class LookupJoinOperatorFactory
     @Override
     public void lifespanFinished(Lifespan lifespan)
     {
-        noMoreOperators(lifespan);
+        joinBridgeManager.probeOperatorFactoryClosed(lifespan);
     }
 
     @Override
     public void close()
     {
-        noMoreOperators();
+        checkState(!closed);
+        closed = true;
+        joinBridgeManager.probeOperatorFactoryClosedForAllLifespans();
+    }
+
+    @Override
+    public LookupJoinOperatorFactory duplicate()
+    {
+        return new LookupJoinOperatorFactory(this);
     }
 }

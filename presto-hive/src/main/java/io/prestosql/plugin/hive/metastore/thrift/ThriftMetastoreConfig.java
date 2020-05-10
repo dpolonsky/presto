@@ -20,9 +20,11 @@ import io.airlift.configuration.LegacyConfig;
 import io.airlift.units.Duration;
 import io.prestosql.plugin.hive.util.RetryDriver;
 
+import javax.validation.constraints.AssertTrue;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
+import java.io.File;
 import java.util.concurrent.TimeUnit;
 
 public class ThriftMetastoreConfig
@@ -35,6 +37,13 @@ public class ThriftMetastoreConfig
     private Duration maxBackoffDelay = RetryDriver.DEFAULT_SLEEP_TIME;
     private Duration maxRetryTime = RetryDriver.DEFAULT_MAX_RETRY_TIME;
     private boolean impersonationEnabled;
+    private boolean deleteFilesOnDrop;
+    private Duration maxWaitForTransactionLock = new Duration(10, TimeUnit.MINUTES);
+
+    private boolean tlsEnabled;
+    private File keystorePath;
+    private String keystorePassword;
+    private File truststorePath;
 
     @NotNull
     public Duration getMetastoreTimeout()
@@ -140,5 +149,89 @@ public class ThriftMetastoreConfig
     {
         this.impersonationEnabled = impersonationEnabled;
         return this;
+    }
+
+    public boolean isDeleteFilesOnDrop()
+    {
+        return deleteFilesOnDrop;
+    }
+
+    @Config("hive.metastore.thrift.delete-files-on-drop")
+    @ConfigDescription("Delete files on drop in case the metastore doesn't do it")
+    public ThriftMetastoreConfig setDeleteFilesOnDrop(boolean deleteFilesOnDrop)
+    {
+        this.deleteFilesOnDrop = deleteFilesOnDrop;
+        return this;
+    }
+
+    public Duration getMaxWaitForTransactionLock()
+    {
+        return maxWaitForTransactionLock;
+    }
+
+    @Config("hive.metastore.thrift.txn-lock-max-wait")
+    @ConfigDescription("Maximum time to wait to acquire hive transaction lock")
+    public ThriftMetastoreConfig setMaxWaitForTransactionLock(Duration maxWaitForTransactionLock)
+    {
+        this.maxWaitForTransactionLock = maxWaitForTransactionLock;
+        return this;
+    }
+
+    public boolean isTlsEnabled()
+    {
+        return tlsEnabled;
+    }
+
+    @Config("hive.metastore.thrift.client.ssl.enabled")
+    @ConfigDescription("Whether TLS security is enabled")
+    public ThriftMetastoreConfig setTlsEnabled(boolean tlsEnabled)
+    {
+        this.tlsEnabled = tlsEnabled;
+        return this;
+    }
+
+    public File getKeystorePath()
+    {
+        return keystorePath;
+    }
+
+    @Config("hive.metastore.thrift.client.ssl.key")
+    @ConfigDescription("Path to the PEM key store")
+    public ThriftMetastoreConfig setKeystorePath(File keystorePath)
+    {
+        this.keystorePath = keystorePath;
+        return this;
+    }
+
+    public String getKeystorePassword()
+    {
+        return keystorePassword;
+    }
+
+    @Config("hive.metastore.thrift.client.ssl.key-password")
+    @ConfigDescription("Password for the key store")
+    public ThriftMetastoreConfig setKeystorePassword(String keystorePassword)
+    {
+        this.keystorePassword = keystorePassword;
+        return this;
+    }
+
+    public File getTruststorePath()
+    {
+        return truststorePath;
+    }
+
+    @Config("hive.metastore.thrift.client.ssl.trust-certificate")
+    @ConfigDescription("Path to the PEM trust store")
+    public ThriftMetastoreConfig setTruststorePath(File truststorePath)
+    {
+        this.truststorePath = truststorePath;
+        return this;
+    }
+
+    @AssertTrue(message = "Trust store must be provided when TLS is enabled")
+    public boolean isTruststorePathValid()
+    {
+        return !tlsEnabled || getTruststorePath() != null;
     }
 }

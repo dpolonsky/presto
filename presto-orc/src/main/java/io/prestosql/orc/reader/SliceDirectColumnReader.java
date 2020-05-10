@@ -58,7 +58,7 @@ public class SliceDirectColumnReader
         implements ColumnReader
 {
     private static final int INSTANCE_SIZE = ClassLayout.parseClass(SliceDirectColumnReader.class).instanceSize();
-    private static final int ONE_GIGABYTE = toIntExact(new DataSize(1, GIGABYTE).toBytes());
+    private static final int ONE_GIGABYTE = toIntExact(DataSize.of(1, GIGABYTE).toBytes());
 
     private final int maxCodePointCount;
     private final boolean isCharType;
@@ -246,7 +246,7 @@ public class SliceDirectColumnReader
     }
 
     @Override
-    public void startStripe(ZoneId timeZone, InputStreamSources dictionaryStreamSources, ColumnMetadata<ColumnEncoding> encoding)
+    public void startStripe(ZoneId fileTimeZone, ZoneId storageTimeZone, InputStreamSources dictionaryStreamSources, ColumnMetadata<ColumnEncoding> encoding)
     {
         presentStreamSource = missingStreamSource(BooleanInputStream.class);
         lengthStreamSource = missingStreamSource(LongInputStream.class);

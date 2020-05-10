@@ -160,7 +160,7 @@ public class CassandraClientModule
                     config.getSpeculativeExecutionLimit())); // maximum number of executions
         }
 
-        return new NativeCassandraSession(
+        return new CassandraSession(
                 extraColumnMetadataCodec,
                 new ReopeningCluster(() -> {
                     contactPoints.forEach(clusterBuilder::addContactPoint);
@@ -217,14 +217,12 @@ public class CassandraClientModule
 
             // get X509TrustManager
             TrustManager[] trustManagers = trustManagerFactory.getTrustManagers();
-            if ((trustManagers.length != 1) || !(trustManagers[0] instanceof X509TrustManager)) {
+            if (trustManagers.length != 1 || !(trustManagers[0] instanceof X509TrustManager)) {
                 throw new RuntimeException("Unexpected default trust managers:" + Arrays.toString(trustManagers));
             }
-            X509TrustManager trustManager = (X509TrustManager) trustManagers[0];
-
             // create SSLContext
             SSLContext result = SSLContext.getInstance("SSL");
-            result.init(keyManagers, new TrustManager[] {trustManager}, null);
+            result.init(keyManagers, trustManagers, null);
             return Optional.of(result);
         }
         catch (GeneralSecurityException | IOException e) {

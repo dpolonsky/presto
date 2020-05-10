@@ -21,14 +21,14 @@ import io.prestosql.plugin.hive.HdfsConfiguration;
 import io.prestosql.plugin.hive.HdfsConfigurationInitializer;
 import io.prestosql.plugin.hive.HdfsEnvironment;
 import io.prestosql.plugin.hive.HiveHdfsConfiguration;
-import io.prestosql.plugin.hive.TestingHivePlugin;
 import io.prestosql.plugin.hive.authentication.NoHdfsAuthentication;
 import io.prestosql.plugin.hive.metastore.HiveMetastore;
 import io.prestosql.plugin.hive.metastore.file.FileHiveMetastore;
+import io.prestosql.plugin.hive.testing.TestingHivePlugin;
 import io.prestosql.spi.security.Identity;
 import io.prestosql.spi.security.SelectedRole;
-import io.prestosql.tests.AbstractTestQueryFramework;
-import io.prestosql.tests.DistributedQueryRunner;
+import io.prestosql.testing.AbstractTestQueryFramework;
+import io.prestosql.testing.DistributedQueryRunner;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -43,14 +43,10 @@ import static org.testng.Assert.assertEquals;
 public class TestIcebergMetadataListing
         extends AbstractTestQueryFramework
 {
-    private static HiveMetastore metastore;
+    private HiveMetastore metastore;
 
-    public TestIcebergMetadataListing()
-    {
-        super(TestIcebergMetadataListing::createQueryRunner);
-    }
-
-    private static DistributedQueryRunner createQueryRunner()
+    @Override
+    protected DistributedQueryRunner createQueryRunner()
             throws Exception
     {
         Session session = testSessionBuilder()

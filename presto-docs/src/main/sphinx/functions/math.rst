@@ -2,6 +2,8 @@
 Mathematical Functions and Operators
 ====================================
 
+.. _mathematical_operators:
+
 Mathematical Operators
 ----------------------
 
@@ -132,6 +134,10 @@ Mathematical Functions
 .. function:: random(n) -> [same as input]
 
     Returns a pseudo-random number between 0 and n (exclusive).
+
+.. function:: random(m, n) -> [same as input]
+
+    Returns a pseudo-random number between m and n (exclusive).
 
 .. function:: round(x) -> [same as input]
 

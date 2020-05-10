@@ -378,7 +378,7 @@ class Query
             return cachedResult.get();
         }
 
-        verify(nextToken.isPresent(), "Can not generate next result when next token is not present");
+        verify(nextToken.isPresent(), "Cannot generate next result when next token is not present");
         verify(token == nextToken.getAsLong(), "Expected token to equal next token");
         URI queryHtmlUri = uriInfo.getRequestUriBuilder()
                 .scheme(scheme)
@@ -564,7 +564,7 @@ class Query
     {
         return uriInfo.getBaseUriBuilder()
                 .scheme(scheme)
-                .replacePath("/v1/statement/partialCancel")
+                .replacePath("/v1/statement/executing/partialCancel")
                 .path(queryId.toString())
                 .path(String.valueOf(stage))
                 .path(slug.makeSlug(EXECUTING_QUERY, nextToken))

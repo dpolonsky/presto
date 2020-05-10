@@ -97,11 +97,11 @@ public class TransformCorrelatedInPredicateToJoin
     private static final Pattern<ApplyNode> PATTERN = applyNode()
             .with(nonEmpty(correlation()));
 
-    private final ResolvedFunction resolvedFunction;
+    private final ResolvedFunction countFunction;
 
     public TransformCorrelatedInPredicateToJoin(Metadata metadata)
     {
-        resolvedFunction = metadata.resolveFunction(QualifiedName.of("count"), ImmutableList.of());
+        countFunction = metadata.resolveFunction(QualifiedName.of("count"), ImmutableList.of());
     }
 
     @Override
@@ -249,22 +249,21 @@ public class TransformCorrelatedInPredicateToJoin
                 probeSide,
                 buildSide,
                 ImmutableList.of(),
-                ImmutableList.<Symbol>builder()
-                        .addAll(probeSide.getOutputSymbols())
-                        .addAll(buildSide.getOutputSymbols())
-                        .build(),
+                probeSide.getOutputSymbols(),
+                buildSide.getOutputSymbols(),
                 Optional.of(joinExpression),
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
-                ImmutableMap.of());
+                ImmutableMap.of(),
+                Optional.empty());
     }
 
     private AggregationNode.Aggregation countWithFilter(Symbol filter)
     {
         return new AggregationNode.Aggregation(
-                resolvedFunction,
+                countFunction,
                 ImmutableList.of(),
                 false,
                 Optional.of(filter),

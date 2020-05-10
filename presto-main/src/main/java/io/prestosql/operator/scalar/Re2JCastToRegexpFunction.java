@@ -16,6 +16,7 @@ package io.prestosql.operator.scalar;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.slice.Slice;
+import io.prestosql.annotation.UsedByGeneratedCode;
 import io.prestosql.metadata.BoundVariables;
 import io.prestosql.metadata.Metadata;
 import io.prestosql.metadata.SqlOperator;
@@ -30,7 +31,7 @@ import static io.prestosql.operator.scalar.ScalarFunctionImplementation.NullConv
 import static io.prestosql.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
 import static io.prestosql.spi.function.OperatorType.CAST;
 import static io.prestosql.spi.type.Chars.padSpaces;
-import static io.prestosql.type.Re2JRegexpType.RE2J_REGEXP;
+import static io.prestosql.type.Re2JRegexpType.RE2J_REGEXP_SIGNATURE;
 import static io.prestosql.util.Reflection.methodHandle;
 import static java.lang.invoke.MethodHandles.insertArguments;
 import static java.util.Collections.emptyList;
@@ -56,7 +57,7 @@ public class Re2JCastToRegexpFunction
 
     private Re2JCastToRegexpFunction(String sourceType, int dfaStatesLimit, int dfaRetries, boolean padSpaces)
     {
-        super(CAST, emptyList(), emptyList(), RE2J_REGEXP.getTypeSignature(), ImmutableList.of(parseTypeSignature(sourceType, ImmutableSet.of("x"))), false);
+        super(CAST, emptyList(), emptyList(), RE2J_REGEXP_SIGNATURE, ImmutableList.of(parseTypeSignature(sourceType, ImmutableSet.of("x"))), false);
         this.dfaStatesLimit = dfaStatesLimit;
         this.dfaRetries = dfaRetries;
         this.padSpaces = padSpaces;
@@ -71,6 +72,7 @@ public class Re2JCastToRegexpFunction
                 insertArguments(METHOD_HANDLE, 0, dfaStatesLimit, dfaRetries, padSpaces, boundVariables.getLongVariable("x")));
     }
 
+    @UsedByGeneratedCode
     public static Re2JRegexp castToRegexp(int dfaStatesLimit, int dfaRetries, boolean padSpaces, long typeLength, Slice pattern)
     {
         try {

@@ -24,6 +24,7 @@ import io.prestosql.spi.connector.ConnectorSession;
 import io.prestosql.spi.connector.ConnectorSplit;
 import io.prestosql.spi.connector.ConnectorTableHandle;
 import io.prestosql.spi.connector.ConnectorTransactionHandle;
+import io.prestosql.spi.connector.FixedPageSource;
 import io.prestosql.spi.connector.RecordCursor;
 import io.prestosql.spi.connector.RecordPageSource;
 import io.prestosql.spi.connector.RecordSet;
@@ -62,7 +63,8 @@ public class SystemPageSourceProvider
             ConnectorSession session,
             ConnectorSplit split,
             ConnectorTableHandle table,
-            List<ColumnHandle> columns)
+            List<ColumnHandle> columns,
+            TupleDomain<ColumnHandle> dynamicFilter)
     {
         requireNonNull(columns, "columns is null");
         SystemTransactionHandle systemTransaction = (SystemTransactionHandle) transaction;
@@ -70,7 +72,7 @@ public class SystemPageSourceProvider
         SchemaTableName tableName = ((SystemTableHandle) table).getSchemaTableName();
         SystemTable systemTable = tables.getSystemTable(session, tableName)
                 // table might disappear in the meantime
-                .orElseThrow(() -> new PrestoException(NOT_FOUND, format("Table %s not found", tableName)));
+                .orElseThrow(() -> new PrestoException(NOT_FOUND, format("Table '%s' not found", tableName)));
 
         List<ColumnMetadata> tableColumns = systemTable.getTableMetadata().getColumns();
 
@@ -95,6 +97,9 @@ public class SystemPageSourceProvider
         }
 
         TupleDomain<ColumnHandle> constraint = systemSplit.getConstraint();
+        if (constraint.isNone()) {
+            return new FixedPageSource(ImmutableList.of());
+        }
         ImmutableMap.Builder<Integer, Domain> newConstraints = ImmutableMap.builder();
         for (Map.Entry<ColumnHandle, Domain> entry : constraint.getDomains().get().entrySet()) {
             String columnName = ((SystemColumnHandle) entry.getKey()).getColumnName();

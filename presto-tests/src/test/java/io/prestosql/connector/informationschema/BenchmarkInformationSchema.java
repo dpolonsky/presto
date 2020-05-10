@@ -21,9 +21,9 @@ import io.prestosql.spi.Plugin;
 import io.prestosql.spi.connector.ConnectorFactory;
 import io.prestosql.spi.connector.ConnectorSession;
 import io.prestosql.spi.connector.SchemaTableName;
+import io.prestosql.testing.DistributedQueryRunner;
 import io.prestosql.testing.MaterializedResult;
 import io.prestosql.testing.QueryRunner;
-import io.prestosql.tests.DistributedQueryRunner;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -146,7 +146,7 @@ public class BenchmarkInformationSchema
     }
 
     public static void main(String[] args)
-            throws Throwable
+            throws Exception
     {
         // assure the benchmarks are valid before running
         BenchmarkData data = new BenchmarkData();

@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.prestosql</groupId>
         <artifactId>presto-root</artifactId>
-        <version>326-SNAPSHOT</version>
+        <version>334-SNAPSHOT</version>
     </parent>
 
     <artifactId>presto-server-rpm</artifactId>
@@ -19,6 +19,19 @@
     </properties>
 
     <dependencies>
+        <!-- for testing -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.prestosql</groupId>
+            <artifactId>presto-main</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <dependency>
             <groupId>io.prestosql</groupId>
             <artifactId>presto-jdbc</artifactId>
@@ -28,6 +41,12 @@
         <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>units</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -42,6 +61,9 @@
                         <excludes combine.children="append">
                             <exclude>src/main/rpm/**</exclude>
                         </excludes>
+                        <mapping>
+                            <groovy>SLASHSTAR_STYLE</groovy>
+                        </mapping>
                     </configuration>
                 </plugin>
             </plugins>
@@ -62,7 +84,7 @@
             </plugin>
 
             <plugin>
-                <groupId>ca.vanzyl.maven.plugins</groupId>
+                <groupId>ca.vanzyl.provisio.maven.plugins</groupId>
                 <artifactId>provisio-maven-plugin</artifactId>
                 <executions>
                     <execution>
@@ -78,11 +100,31 @@
                 </executions>
             </plugin>
 
+            <plugin>
+                <groupId>org.codehaus.gmaven</groupId>
+                <artifactId>groovy-maven-plugin</artifactId>
+                <version>2.1.1</version>
+                <executions>
+                    <execution>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>execute</goal>
+                        </goals>
+                        <configuration>
+                            <source>${project.basedir}/src/main/script/symlink.groovy</source>
+                            <properties>
+                                <root>${project.build.outputDirectory}/${server.tar.package}</root>
+                            </properties>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
             <!-- Build presto-server rpm using the untarred artifacts -->
             <plugin>
-                <groupId>com.teradata</groupId>
-                <artifactId>redlinerpm-maven-plugin-td</artifactId>
-                <version>2.1.5</version>
+                <groupId>io.airlift.maven.plugins</groupId>
+                <artifactId>redlinerpm-maven-plugin</artifactId>
+                <version>2.1.6</version>
                 <extensions>true</extensions>
 
                 <configuration>
@@ -162,6 +204,14 @@
                                 </rule>
 
                                 <rule>
+                                    <destination>/usr/lib/presto/shared</destination>
+                                    <base>${server.tar.package}/shared</base>
+                                    <includes>
+                                        <include>*</include>
+                                    </includes>
+                                </rule>
+
+                                <rule>
                                     <!-- This should go to just /usr/lib/presto eventually. But that needs modifying
                                     launcher.py in airlift, to have a configurable option for install_path -->
                                     <destination>/usr/lib/presto/lib</destination>
@@ -172,7 +222,7 @@
                                 </rule>
 
                                 <rule>
-                                    <destination>/usr/lib/presto/lib/plugin</destination>
+                                    <destination>/usr/lib/presto/plugin</destination>
                                     <base>${server.tar.package}/plugin</base>
                                     <includes>
                                         <include>*/*</include>
@@ -211,6 +261,31 @@
                     </packages>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-file-size</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireFilesSize>
+                                    <!-- Maven Central has a 1GB limit -->
+                                    <maxsize>1073741824</maxsize>
+                                    <files>
+                                        <file>${project.build.directory}/${project.build.finalName}.x86_64.rpm</file>
+                                    </files>
+                                </requireFilesSize>
+                            </rules>
+                            <fail>true</fail>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
@@ -220,75 +295,12 @@
             <build>
                 <plugins>
                     <plugin>
-                        <groupId>io.fabric8</groupId>
-                        <artifactId>docker-maven-plugin</artifactId>
-                        <version>0.31.0</version>
-                        <configuration>
-                            <logDate>none</logDate>
-                            <images>
-                                <image>
-                                    <name>prestodev/centos7-oj8</name>
-                                    <run>
-                                        <ports>
-                                            <!--suppress UnresolvedMavenProperty -->
-                                            <port>${presto.port}:8080</port>
-                                        </ports>
-                                        <volumes>
-                                            <bind>
-                                                <volume>${project.build.directory}:/target</volume>
-                                            </bind>
-                                        </volumes>
-                                        <cmd>
-                                            <exec>
-                                                <args>sh</args>
-                                                <args>-xeuc</args>
-                                                <args><![CDATA[
-rpm -i /target/${project.build.finalName}.x86_64.rpm
-mkdir /etc/presto/catalog
-cat <<EOT > /etc/presto/catalog/hive.properties
-connector.name=hive-hadoop2
-hive.metastore.uri=thrift://localhost:9083
-EOT
-/etc/init.d/presto start
-# allow tail to work with Docker's non-local file system
-tail ---disable-inotify -F /var/log/presto/server.log
-                                                ]]></args>
-                                            </exec>
-                                        </cmd>
-                                        <wait>
-                                            <time>60000</time>
-                                            <log>.*SERVER STARTED.*</log>
-                                        </wait>
-                                    </run>
-                                </image>
-                            </images>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <id>start</id>
-                                <phase>pre-integration-test</phase>
-                                <goals>
-                                    <goal>start</goal>
-                                </goals>
-                            </execution>
-                            <execution>
-                                <id>stop</id>
-                                <phase>post-integration-test</phase>
-                                <goals>
-                                    <goal>stop</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-
-                    <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-failsafe-plugin</artifactId>
                         <version>2.22.2</version>
                         <configuration>
                             <systemPropertyVariables>
-                                <!--suppress UnresolvedMavenProperty -->
-                                <presto.port>${presto.port}</presto.port>
+                                <rpm>${project.build.directory}/${project.build.finalName}.x86_64.rpm</rpm>
                             </systemPropertyVariables>
                         </configuration>
                         <executions>

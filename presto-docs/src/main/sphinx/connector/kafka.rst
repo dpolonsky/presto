@@ -10,13 +10,17 @@ Kafka Connector
 Overview
 --------
 
-This connector allows the use of `Apache Kafka <https://kafka.apache.org/>`_ 
-topics as tables in Presto.
-Each message is presented as a row in Presto.
+This connector allows the use of `Apache Kafka <https://kafka.apache.org/>`_
+topics as tables in Presto. Each message is presented as a row in Presto.
 
 Topics can be live. Rows appear as data arrives, and disappear as
 segments get dropped. This can result in strange behavior if accessing the
 same table multiple times in a single query (e.g., performing a self join).
+
+The connector reads message data from Kafka topics in parallel across workers to
+achieve a significant performance gain. The size of data sets for this
+parallelization is configurable and can therefore be adapted to your specific
+needs.
 
 .. note::
 
@@ -59,6 +63,7 @@ Property Name                   Description
 ``kafka.buffer-size``           Kafka read buffer size
 ``kafka.table-description-dir`` Directory containing topic description files
 ``kafka.hide-internal-columns`` Controls whether internal columns are part of the table schema or not
+``kafka.messages-per-split``    Number of messages that are processed by each Presto split, defaults to 100000
 =============================== ==============================================================
 
 ``kafka.table-names``

@@ -156,6 +156,9 @@ public class ClientOptions
     @Option(name = "--ignore-errors", title = "ignore errors", description = "Continue processing in batch mode when an error occurs (default is to exit immediately)")
     public boolean ignoreErrors;
 
+    @Option(name = "--timezone", title = "timezone", description = "Session time zone (default: system time zone)")
+    public String timeZone = ZoneId.systemDefault().getId();
+
     public enum OutputFormat
     {
         ALIGNED,
@@ -183,7 +186,7 @@ public class ClientOptions
                 catalog,
                 schema,
                 null,
-                ZoneId.systemDefault(),
+                ZoneId.of(timeZone),
                 Locale.getDefault(),
                 toResourceEstimates(resourceEstimates),
                 toProperties(sessionProperties),

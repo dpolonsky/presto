@@ -131,7 +131,8 @@ public class PushPredicateIntoTableScan
 
         TableScanNode rewrittenTableScan = (TableScanNode) rewrittenFilter.getSource();
 
-        return Objects.equals(tableScan.getEnforcedConstraint(), rewrittenTableScan.getEnforcedConstraint());
+        return Objects.equals(tableScan.getEnforcedConstraint(), rewrittenTableScan.getEnforcedConstraint()) &&
+                Objects.equals(tableScan.getTable(), rewrittenTableScan.getTable());
     }
 
     public static Optional<PlanNode> pushFilterIntoTableScan(
@@ -176,7 +177,7 @@ public class PushPredicateIntoTableScan
                             // Simplify the tuple domain to avoid creating an expression with too many nodes,
                             // which would be expensive to evaluate in the call to isCandidate below.
                             domainTranslator.toPredicate(newDomain.simplify().transform(assignments::get))));
-            constraint = new Constraint(newDomain, evaluator::isCandidate);
+            constraint = new Constraint(newDomain, evaluator::isCandidate, evaluator.getArguments());
         }
         else {
             // Currently, invoking the expression interpreter is very expensive.
@@ -291,6 +292,11 @@ public class PushPredicateIntoTableScan
             arguments = SymbolsExtractor.extractUnique(expression).stream()
                     .map(assignments::get)
                     .collect(toImmutableSet());
+        }
+
+        public Set<ColumnHandle> getArguments()
+        {
+            return arguments;
         }
 
         private boolean isCandidate(Map<ColumnHandle, NullableValue> bindings)

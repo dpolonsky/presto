@@ -2,6 +2,14 @@
 
 The presto-docs module contains the reference documentation for Presto.
 
+- [Tools](#tools)
+- [Default Build](#default-build)
+- [Faster Build for Authoring](#faster-build-for-authoring)
+- [Viewing Documentation](#viewing-documentation)
+- [Using sphinx-autobuild](#using-sphinx-autobuild)
+- [Versioning](#versioning)
+- [Known Issues](#known-issues)
+
 ## Tools
 
 The default build of the docs is performed with Apache Maven.
@@ -98,6 +106,46 @@ python3 -m http.server 4000
 In order to see any changes from the source files in the HTML output, simply
 re-run the make command and refresh the browser.
 
+## Using sphinx-autobuild
+
+The optional setup of using
+[sphinx-autobuild](https://pypi.org/project/sphinx-autobuild/) allows you to
+have a running server with the docs and get incremental updates after saving any
+changes. This is the fastest and best way to work on the documentation.
+
+To use it, simply install sphinx-autobuild, and then run
+
+```bash
+make clean livehtml
+```
+
+From now on the docs are available at
+[http://localhost:8000](http://localhost:8000).
+
+## Versioning
+
+The version displayed in the resulting HTML is read from the top level Maven
+`pom.xml` file `version` field, by default.
+
+To deploy a specific documentation set (e.g. a SNAPSHOT version) as release
+version you have to override the pom version with the `PRESTO_VERSION`
+environment variable.
+
+```bash
+PRESTO_VERSION=327 make clean html
+```
+
+If you work on the docs for more than one invocation, you can export the
+variable and use it with sphinx as well as sphinx-autobuild.
+
+```bash
+export PRESTO_VERSION=327
+make clean html
+```
+
+This is especially useful when deploying doc patches for a release where the
+Maven pom has already moved to the next SNAPSHOT version.
+
 ## Known Issues
 
 - Older Sphinx versions do not support the `-j auto` SPHINXOPTS in the makefile.
@@ -105,3 +153,11 @@ re-run the make command and refresh the browser.
   embedded in the Maven plugin used for the default build.
 - Formats like `man` and others beyond the default `html` might have formatting
   and content issues and are not actively maintained.
+- Different installation methods for Sphinx result in different versions, and
+  hence in sometimes different problems. Especially when also using
+  sphinx-autobuild we recommend using the `pip`-based installation.
+- Sphinx 2.x+ fails due to requiring parallel write support, which our sitemap extension
+  does not support. We recommend installing an older version by running
+  `pip3 install sphinx==1.8.2`. Alternatively, you clear `SPHINXOPTS` when running
+  Sphinx by using `make SPHINXOPTS="" clean html`, but this may result in other
+  compatibility issues or differences from the output produced by the Maven plugin.

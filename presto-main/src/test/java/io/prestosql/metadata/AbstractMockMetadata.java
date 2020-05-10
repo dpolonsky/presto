@@ -15,7 +15,6 @@ package io.prestosql.metadata;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Multimap;
 import io.airlift.slice.Slice;
 import io.prestosql.Session;
 import io.prestosql.connector.CatalogName;
@@ -30,7 +29,6 @@ import io.prestosql.spi.connector.ColumnHandle;
 import io.prestosql.spi.connector.ColumnMetadata;
 import io.prestosql.spi.connector.ConnectorCapabilities;
 import io.prestosql.spi.connector.ConnectorOutputMetadata;
-import io.prestosql.spi.connector.ConnectorTableHandle;
 import io.prestosql.spi.connector.ConnectorTableMetadata;
 import io.prestosql.spi.connector.ConnectorViewDefinition;
 import io.prestosql.spi.connector.Constraint;
@@ -186,7 +184,7 @@ public abstract class AbstractMockMetadata
     }
 
     @Override
-    public void createSchema(Session session, CatalogSchemaName schema, Map<String, Object> properties)
+    public void createSchema(Session session, CatalogSchemaName schema, Map<String, Object> properties, PrestoPrincipal principal)
     {
         throw new UnsupportedOperationException();
     }
@@ -199,6 +197,12 @@ public abstract class AbstractMockMetadata
 
     @Override
     public void renameSchema(Session session, CatalogSchemaName source, String target)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void setSchemaAuthorization(Session session, CatalogSchemaName source, PrestoPrincipal principal)
     {
         throw new UnsupportedOperationException();
     }
@@ -294,19 +298,19 @@ public abstract class AbstractMockMetadata
     }
 
     @Override
-    public void beginQuery(Session session, Multimap<CatalogName, ConnectorTableHandle> connectors)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public void cleanupQuery(Session session)
     {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public InsertTableHandle beginInsert(Session session, TableHandle tableHandle)
+    public InsertTableHandle beginInsert(Session session, TableHandle tableHandle, List<ColumnHandle> columns)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean supportsMissingColumnsOnInsert(Session session, TableHandle tableHandle)
     {
         throw new UnsupportedOperationException();
     }
@@ -384,7 +388,25 @@ public abstract class AbstractMockMetadata
     }
 
     @Override
+    public Map<String, Object> getSchemaProperties(Session session, CatalogSchemaName schemaName)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Optional<PrestoPrincipal> getSchemaOwner(Session session, CatalogSchemaName schemaName)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void createView(Session session, QualifiedObjectName viewName, ConnectorViewDefinition definition, boolean replace)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void renameView(Session session, QualifiedObjectName source, QualifiedObjectName target)
     {
         throw new UnsupportedOperationException();
     }
@@ -448,13 +470,13 @@ public abstract class AbstractMockMetadata
     }
 
     @Override
-    public void grantRoles(Session session, Set<String> roles, Set<PrestoPrincipal> grantees, boolean withAdminOption, Optional<PrestoPrincipal> grantor, String catalog)
+    public void grantRoles(Session session, Set<String> roles, Set<PrestoPrincipal> grantees, boolean adminOption, Optional<PrestoPrincipal> grantor, String catalog)
     {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void revokeRoles(Session session, Set<String> roles, Set<PrestoPrincipal> grantees, boolean adminOptionFor, Optional<PrestoPrincipal> grantor, String catalog)
+    public void revokeRoles(Session session, Set<String> roles, Set<PrestoPrincipal> grantees, boolean adminOption, Optional<PrestoPrincipal> grantor, String catalog)
     {
         throw new UnsupportedOperationException();
     }

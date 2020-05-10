@@ -14,6 +14,7 @@
 package io.prestosql.server;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.StandardSystemProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Injector;
 import com.google.inject.Module;
@@ -21,7 +22,7 @@ import io.airlift.bootstrap.Bootstrap;
 import io.airlift.discovery.client.Announcer;
 import io.airlift.discovery.client.DiscoveryModule;
 import io.airlift.discovery.client.ServiceAnnouncement;
-import io.airlift.event.client.HttpEventModule;
+import io.airlift.event.client.EventModule;
 import io.airlift.event.client.JsonEventModule;
 import io.airlift.http.server.HttpServerModule;
 import io.airlift.jaxrs.JaxrsModule;
@@ -42,9 +43,9 @@ import io.prestosql.metadata.CatalogManager;
 import io.prestosql.metadata.StaticCatalogStore;
 import io.prestosql.security.AccessControlManager;
 import io.prestosql.security.AccessControlModule;
+import io.prestosql.security.GroupProviderManager;
 import io.prestosql.server.security.PasswordAuthenticatorManager;
 import io.prestosql.server.security.ServerSecurityModule;
-import io.prestosql.sql.parser.SqlParserOptions;
 import io.prestosql.version.EmbedVersion;
 import org.weakref.jmx.guice.MBeanModule;
 
@@ -52,16 +53,14 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Set;
 
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.airlift.discovery.client.ServiceAnnouncement.ServiceAnnouncementBuilder;
 import static io.airlift.discovery.client.ServiceAnnouncement.serviceAnnouncement;
 import static io.prestosql.server.PrestoSystemRequirements.verifyJvmRequirements;
 import static io.prestosql.server.PrestoSystemRequirements.verifySystemTimeIsReasonable;
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
-import static java.util.Objects.requireNonNull;
 
 public class PrestoServer
         implements Runnable
@@ -73,18 +72,6 @@ public class PrestoServer
         embedVersion.embedVersion(new PrestoServer()::run).run();
     }
 
-    private final SqlParserOptions sqlParserOptions;
-
-    public PrestoServer()
-    {
-        this(new SqlParserOptions());
-    }
-
-    public PrestoServer(SqlParserOptions sqlParserOptions)
-    {
-        this.sqlParserOptions = requireNonNull(sqlParserOptions, "sqlParserOptions is null");
-    }
-
     @Override
     public void run()
     {
@@ -92,6 +79,7 @@ public class PrestoServer
         verifySystemTimeIsReasonable();
 
         Logger log = Logger.get(PrestoServer.class);
+        log.info("Java version: %s", StandardSystemProperty.JAVA_VERSION.value());
 
         ImmutableList.Builder<Module> modules = ImmutableList.builder();
         modules.add(
@@ -106,12 +94,12 @@ public class PrestoServer
                 new JmxHttpModule(),
                 new LogJmxModule(),
                 new TraceTokenModule(),
+                new EventModule(),
                 new JsonEventModule(),
-                new HttpEventModule(),
                 new ServerSecurityModule(),
                 new AccessControlModule(),
                 new EventListenerModule(),
-                new ServerMainModule(sqlParserOptions),
+                new ServerMainModule(),
                 new GracefulShutdownModule(),
                 new WarningCollectorModule());
 
@@ -140,7 +128,8 @@ public class PrestoServer
             injector.getInstance(ResourceGroupManager.class).loadConfigurationManager();
             injector.getInstance(AccessControlManager.class).loadSystemAccessControl();
             injector.getInstance(PasswordAuthenticatorManager.class).loadPasswordAuthenticator();
-            injector.getInstance(EventListenerManager.class).loadConfiguredEventListener();
+            injector.getInstance(EventListenerManager.class).loadEventListeners();
+            injector.getInstance(GroupProviderManager.class).loadConfiguredGroupProvider();
 
             injector.getInstance(Announcer.class).start();
 
@@ -164,24 +153,11 @@ public class PrestoServer
         // get existing announcement
         ServiceAnnouncement announcement = getPrestoAnnouncement(announcer.getServiceAnnouncements());
 
-        Set<String> connectorIds = new LinkedHashSet<>();
-
         // automatically build connectorIds if not configured
-        List<Catalog> catalogs = metadata.getCatalogs();
-        // if this is a dedicated coordinator, only add jmx
-        if (serverConfig.isCoordinator() && !schedulerConfig.isIncludeCoordinator()) {
-            catalogs.stream()
-                    .map(Catalog::getConnectorCatalogName)
-                    .filter(connectorId -> connectorId.getCatalogName().equals("jmx"))
-                    .map(Object::toString)
-                    .forEach(connectorIds::add);
-        }
-        else {
-            catalogs.stream()
-                    .map(Catalog::getConnectorCatalogName)
-                    .map(Object::toString)
-                    .forEach(connectorIds::add);
-        }
+        Set<String> connectorIds = metadata.getCatalogs().stream()
+                .map(Catalog::getConnectorCatalogName)
+                .map(Object::toString)
+                .collect(toImmutableSet());
 
         // build announcement with updated sources
         ServiceAnnouncementBuilder builder = serviceAnnouncement(announcement.getType());

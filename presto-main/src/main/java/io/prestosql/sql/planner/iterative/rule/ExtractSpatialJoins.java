@@ -34,6 +34,7 @@ import io.prestosql.spi.Page;
 import io.prestosql.spi.PrestoException;
 import io.prestosql.spi.connector.ColumnHandle;
 import io.prestosql.spi.connector.ConnectorPageSource;
+import io.prestosql.spi.predicate.TupleDomain;
 import io.prestosql.spi.type.ArrayType;
 import io.prestosql.spi.type.Type;
 import io.prestosql.spi.type.TypeSignature;
@@ -340,13 +341,15 @@ public class ExtractSpatialJoins
                 leftNode,
                 newRightNode,
                 joinNode.getCriteria(),
-                joinNode.getOutputSymbols(),
+                joinNode.getLeftOutputSymbols(),
+                joinNode.getRightOutputSymbols(),
                 Optional.of(newFilter),
                 joinNode.getLeftHashSymbol(),
                 joinNode.getRightHashSymbol(),
                 joinNode.getDistributionType(),
                 joinNode.isSpillable(),
-                joinNode.getDynamicFilters());
+                joinNode.getDynamicFilters(),
+                joinNode.getReorderJoinStatsAndCost());
 
         return tryCreateSpatialJoin(context, newJoinNode, newFilter, nodeId, outputSymbols, (FunctionCall) newComparison.getLeft(), Optional.of(newComparison.getRight()), metadata, splitManager, pageSourceManager, typeAnalyzer);
     }
@@ -468,7 +471,7 @@ public class ExtractSpatialJoins
                 List<Split> splits = splitBatch.getSplits();
 
                 for (Split split : splits) {
-                    try (ConnectorPageSource pageSource = pageSourceManager.createPageSource(session, split, tableHandle, ImmutableList.of(kdbTreeColumn), null)) {
+                    try (ConnectorPageSource pageSource = pageSourceManager.createPageSource(session, split, tableHandle, ImmutableList.of(kdbTreeColumn), TupleDomain::all)) {
                         do {
                             getFutureValue(pageSource.isBlocked());
                             Page page = pageSource.getNextPage();
@@ -604,7 +607,7 @@ public class ExtractSpatialJoins
                 context.getIdAllocator().getNextId(),
                 new ProjectNode(context.getIdAllocator().getNextId(), node, projections.build()),
                 node.getOutputSymbols(),
-                ImmutableMap.of(partitionsSymbol, ImmutableList.of(partitionSymbol)),
+                ImmutableList.of(new UnnestNode.Mapping(partitionsSymbol, ImmutableList.of(partitionSymbol))),
                 Optional.empty(),
                 INNER,
                 Optional.empty());

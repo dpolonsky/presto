@@ -542,6 +542,11 @@ public abstract class AstVisitor<R, C>
         return visitStatement(node, context);
     }
 
+    protected R visitSetSchemaAuthorization(SetSchemaAuthorization node, C context)
+    {
+        return visitStatement(node, context);
+    }
+
     protected R visitCreateTable(CreateTable node, C context)
     {
         return visitStatement(node, context);
@@ -563,6 +568,11 @@ public abstract class AstVisitor<R, C>
     }
 
     protected R visitRenameTable(RenameTable node, C context)
+    {
+        return visitStatement(node, context);
+    }
+
+    protected R visitRenameView(RenameView node, C context)
     {
         return visitStatement(node, context);
     }

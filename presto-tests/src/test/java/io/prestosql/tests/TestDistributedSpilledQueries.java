@@ -17,6 +17,8 @@ import com.google.common.collect.ImmutableMap;
 import io.prestosql.Session;
 import io.prestosql.SystemSessionProperties;
 import io.prestosql.plugin.tpch.TpchPlugin;
+import io.prestosql.testing.AbstractTestQueries;
+import io.prestosql.testing.DistributedQueryRunner;
 
 import java.nio.file.Paths;
 
@@ -26,12 +28,14 @@ import static io.prestosql.testing.TestingSession.testSessionBuilder;
 public class TestDistributedSpilledQueries
         extends AbstractTestQueries
 {
-    public TestDistributedSpilledQueries()
+    @Override
+    protected DistributedQueryRunner createQueryRunner()
+            throws Exception
     {
-        super(TestDistributedSpilledQueries::createQueryRunner);
+        return createSpillingQueryRunner();
     }
 
-    public static DistributedQueryRunner createQueryRunner()
+    public static DistributedQueryRunner createSpillingQueryRunner()
             throws Exception
     {
         Session defaultSession = testSessionBuilder()
@@ -64,12 +68,5 @@ public class TestDistributedSpilledQueries
             queryRunner.close();
             throw e;
         }
-    }
-
-    @Override
-    public void testAssignUniqueId()
-    {
-        // TODO: disabled until https://github.com/prestodb/presto/issues/8926 is resolved
-        //       due to long running query test created many spill files on disk.
     }
 }
