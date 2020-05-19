@@ -27,9 +27,10 @@ public final class StatementClientFactory
 
     public static StatementClient newStatementClient(OkHttpClient httpClient, FlightClient flightClient, ClientSession session, String query)
     {
-        if ( flightClient == null) {
+        if (flightClient == null) {
             return new StatementClientV1(httpClient, session, query);
-        }else{
+        }
+        else {
             return new StatementClientV2(httpClient, flightClient, session, query);
         }
     }

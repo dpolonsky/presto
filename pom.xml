@@ -54,6 +54,7 @@
         <dep.gcs.version>2.0.0</dep.gcs.version>
         <dep.errorprone.version>2.3.4</dep.errorprone.version>
         <rubix.version>0.3.6</rubix.version>
+        <arrow.flight.version>0.15.1</arrow.flight.version>
 
         <!--
           America/Bahia_Banderas has:
@@ -1203,6 +1204,30 @@
                 <groupId>com.qubole.rubix</groupId>
                 <artifactId>rubix-presto-shaded</artifactId>
                 <version>${rubix.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.arrow</groupId>
+                <artifactId>arrow-flight</artifactId>
+                <version>${arrow.flight.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.apache.arrow</groupId>
+                        <artifactId>arrow-vector</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.arrow</groupId>
+                <artifactId>arrow-vector</artifactId>
+                <version>${arrow.flight.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.arrow</groupId>
+                <artifactId>arrow-memory</artifactId>
+                <version>${arrow.flight.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

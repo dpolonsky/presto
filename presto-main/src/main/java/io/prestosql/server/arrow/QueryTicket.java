@@ -1,10 +1,17 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.prestosql.server.arrow;
-
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.arrow.flight.Ticket;
-import org.apache.arrow.util.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -12,11 +19,15 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.base.Throwables;
+import org.apache.arrow.flight.Ticket;
+import org.apache.arrow.util.Preconditions;
+
+import java.io.IOException;
+import java.util.List;
 
 @JsonSerialize
 public class QueryTicket
 {
-
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final List<String> path;
@@ -30,11 +41,12 @@ public class QueryTicket
      *
      * @param path Path to data
      * @param ordinal A counter for the stream.
-     * @param uuid  A unique identifier for this particular stream.
+     * @param uuid A unique identifier for this particular stream.
      */
     @JsonCreator
     public QueryTicket(@JsonProperty("path") List<String> path, @JsonProperty("ordinal") int ordinal,
-            @JsonProperty("uuid") String uuid) {
+            @JsonProperty("uuid") String uuid)
+    {
         super();
         Preconditions.checkArgument(ordinal >= 0);
         this.path = path;
@@ -42,42 +54,50 @@ public class QueryTicket
         this.uuid = uuid;
     }
 
-    public List<String> getPath() {
-        return path;
-    }
-
-    public int getOrdinal() {
-        return ordinal;
-    }
-
-    public String getUuid() {
-        return uuid;
-    }
-
     /**
      * Deserializes a new instance from the protocol buffer ticket.
      */
-    public static QueryTicket from(Ticket ticket) {
+    public static QueryTicket from(Ticket ticket)
+    {
         try {
             return MAPPER.readValue(ticket.getBytes(), QueryTicket.class);
-        } catch (IOException e) {
+        }
+        catch (IOException e) {
             throw Throwables.propagate(e);
         }
     }
 
+    public List<String> getPath()
+    {
+        return path;
+    }
+
+    public int getOrdinal()
+    {
+        return ordinal;
+    }
+
+    public String getUuid()
+    {
+        return uuid;
+    }
+
     /**
-     *  Creates a new protocol buffer Ticket by serializing to JSON.
+     * Creates a new protocol buffer Ticket by serializing to JSON.
      */
-    public Ticket toTicket() {
+    public Ticket toTicket()
+    {
         try {
             return new Ticket(MAPPER.writeValueAsBytes(this));
-        } catch (JsonProcessingException e) {
+        }
+        catch (JsonProcessingException e) {
             throw Throwables.propagate(e);
         }
     }
 
     @Override
-    public int hashCode() {
+    public int hashCode()
+    {
         final int prime = 31;
         int result = 1;
         result = prime * result + ordinal;
@@ -87,7 +107,8 @@ public class QueryTicket
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(Object obj)
+    {
         if (this == obj) {
             return true;
         }
@@ -105,17 +126,18 @@ public class QueryTicket
             if (other.path != null) {
                 return false;
             }
-        } else if (!path.equals(other.path)) {
+        }
+        else if (!path.equals(other.path)) {
             return false;
         }
         if (uuid == null) {
             if (other.uuid != null) {
                 return false;
             }
-        } else if (!uuid.equals(other.uuid)) {
+        }
+        else if (!uuid.equals(other.uuid)) {
             return false;
         }
         return true;
     }
-
 }

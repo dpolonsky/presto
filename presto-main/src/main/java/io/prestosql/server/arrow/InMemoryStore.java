@@ -1,3 +1,16 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.prestosql.server.arrow;
 
 import org.apache.arrow.flight.Action;
@@ -23,7 +36,6 @@ import java.util.concurrent.ConcurrentMap;
 public class InMemoryStore
         implements FlightProducer, AutoCloseable
 {
-
     private final ConcurrentMap<FlightDescriptor, FlightHolder> holders = new ConcurrentHashMap<>();
     private final BufferAllocator allocator;
     private final Location location;
@@ -32,7 +44,7 @@ public class InMemoryStore
      * Constructs a new instance.
      *
      * @param allocator The allocator for creating new Arrow buffers.
-     * @param location  The location of the storage.
+     * @param location The location of the storage.
      */
     public InMemoryStore(BufferAllocator allocator, Location location)
     {

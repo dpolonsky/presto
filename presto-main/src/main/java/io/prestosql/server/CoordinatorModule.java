@@ -107,7 +107,6 @@ import io.prestosql.memory.TotalReservationLowMemoryKiller;
 import io.prestosql.memory.TotalReservationOnBlockedNodesLowMemoryKiller;
 import io.prestosql.metadata.CatalogManager;
 import io.prestosql.operator.ForScheduler;
-import io.prestosql.server.arrow.ArrowFlightServer;
 import io.prestosql.server.protocol.ExecutingStatementResource;
 import io.prestosql.server.remotetask.RemoteTaskStats;
 import io.prestosql.server.ui.WebUiModule;
@@ -185,6 +184,7 @@ import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
+// TODO check ArrowFlightServer
 public class CoordinatorModule
         extends AbstractConfigurationAwareModule
 {

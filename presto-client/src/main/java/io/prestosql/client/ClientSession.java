@@ -17,7 +17,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.net.HostAndPort;
 import io.airlift.units.Duration;
-import org.apache.commons.codec.binary.StringUtils;
 
 import java.net.URI;
 import java.nio.charset.CharsetEncoder;
@@ -54,18 +53,6 @@ public class ClientSession
     private final String transactionId;
     private final Duration clientRequestTimeout;
     private final HostAndPort arrowServer;
-
-    public static Builder builder(ClientSession clientSession)
-    {
-        return new Builder(clientSession);
-    }
-
-    public static ClientSession stripTransactionId(ClientSession session)
-    {
-        return ClientSession.builder(session)
-                .withoutTransactionId()
-                .build();
-    }
 
     public ClientSession(
             URI server,
@@ -137,6 +124,18 @@ public class ClientSession
         }
     }
 
+    public static Builder builder(ClientSession clientSession)
+    {
+        return new Builder(clientSession);
+    }
+
+    public static ClientSession stripTransactionId(ClientSession session)
+    {
+        return ClientSession.builder(session)
+                .withoutTransactionId()
+                .build();
+    }
+
     public URI getServer()
     {
         return server;
@@ -147,7 +146,8 @@ public class ClientSession
         return arrowServer;
     }
 
-    public boolean hasArrow(){
+    public boolean hasArrow()
+    {
         return !(arrowServer == null || "".equals(arrowServer.getHost()));
     }
 

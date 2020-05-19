@@ -341,6 +341,27 @@
         </dependency>
 
         <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.30</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.arrow</groupId>
+            <artifactId>arrow-flight</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.arrow</groupId>
+            <artifactId>arrow-vector</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.arrow</groupId>
+            <artifactId>arrow-memory</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>test</scope>
@@ -400,6 +421,30 @@
                     <ignorePackages>
                         <ignorePackage>io.prestosql.testing.assertions</ignorePackage>
                     </ignorePackages>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.basepom.maven</groupId>
+                <artifactId>duplicate-finder-maven-plugin</artifactId>
+                <configuration>
+                    <ignoredDependencies>
+                        <dependency>
+                            <groupId>org.apache.arrow</groupId>
+                            <artifactId>arrow-flight</artifactId>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.apache.arrow</groupId>
+                            <artifactId>arrow-format</artifactId>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.apache.arrow</groupId>
+                            <artifactId>arrow-memory</artifactId>
+                        </dependency>
+                        <dependency>
+                            <groupId>io.netty</groupId>
+                            <artifactId>netty-transport-native-unix-common</artifactId>
+                        </dependency>
+                    </ignoredDependencies>
                 </configuration>
             </plugin>
         </plugins>

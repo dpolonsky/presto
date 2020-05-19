@@ -20,21 +20,12 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import io.airlift.json.JsonCodec;
 import io.airlift.units.Duration;
-import io.grpc.BindableService;
-import io.grpc.ManagedChannel;
-import io.grpc.inprocess.InProcessChannelBuilder;
 import okhttp3.Headers;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
-import org.apache.arrow.flight.FlightClient;
-import org.apache.arrow.flight.Location;
-import org.apache.arrow.flight.NoOpFlightProducer;
-import org.apache.arrow.flight.auth.ServerAuthHandler;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
@@ -51,8 +42,6 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -125,7 +114,7 @@ class StatementClientV1
 
     private final AtomicReference<State> state = new AtomicReference<>(State.RUNNING);
 
-    public StatementClientV1(OkHttpClient httpClient,ClientSession session, String query)
+    public StatementClientV1(OkHttpClient httpClient, ClientSession session, String query)
     {
         requireNonNull(httpClient, "httpClient is null");
         requireNonNull(session, "session is null");
@@ -147,6 +136,26 @@ class StatementClientV1
         }
 
         processResponse(response.getHeaders(), response.getValue());
+    }
+
+    private static String urlEncode(String value)
+    {
+        try {
+            return URLEncoder.encode(value, "UTF-8");
+        }
+        catch (UnsupportedEncodingException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    private static String urlDecode(String value)
+    {
+        try {
+            return URLDecoder.decode(value, "UTF-8");
+        }
+        catch (UnsupportedEncodingException e) {
+            throw new AssertionError(e);
+        }
     }
 
     private Request buildQueryRequest(ClientSession session, String query)
@@ -514,26 +523,6 @@ class StatementClientV1
         }
         catch (IOException ignored) {
             // callers expect this method not to throw
-        }
-    }
-
-    private static String urlEncode(String value)
-    {
-        try {
-            return URLEncoder.encode(value, "UTF-8");
-        }
-        catch (UnsupportedEncodingException e) {
-            throw new AssertionError(e);
-        }
-    }
-
-    private static String urlDecode(String value)
-    {
-        try {
-            return URLDecoder.decode(value, "UTF-8");
-        }
-        catch (UnsupportedEncodingException e) {
-            throw new AssertionError(e);
         }
     }
 

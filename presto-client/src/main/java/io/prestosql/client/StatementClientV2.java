@@ -28,7 +28,6 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import org.apache.arrow.flight.Criteria;
 import org.apache.arrow.flight.FlightClient;
-import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightInfo;
 import org.apache.arrow.flight.FlightStream;
 import org.apache.arrow.flight.Ticket;
@@ -85,6 +84,7 @@ import static java.lang.String.format;
 import static java.net.HttpURLConnection.HTTP_OK;
 import static java.net.HttpURLConnection.HTTP_UNAUTHORIZED;
 import static java.net.HttpURLConnection.HTTP_UNAVAILABLE;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -101,7 +101,6 @@ class StatementClientV2
             firstNonNull(StatementClientV2.class.getPackage().getImplementationVersion(), "unknown");
 
     private final OkHttpClient httpClient;
-    private FlightClient flightClient;
     private final String query;
     private final AtomicReference<QueryResults> currentResults = new AtomicReference<>();
     private final AtomicReference<String> setCatalog = new AtomicReference<>();
@@ -118,8 +117,8 @@ class StatementClientV2
     private final Duration requestTimeoutNanos;
     private final String user;
     private final String clientCapabilities;
-
     private final AtomicReference<State> state = new AtomicReference<>(State.RUNNING);
+    private FlightClient flightClient;
 
     public StatementClientV2(OkHttpClient httpClient, FlightClient flightClient, ClientSession session, String query)
     {
@@ -144,6 +143,26 @@ class StatementClientV2
         }
 
         processResponse(response.getHeaders(), response.getValue());
+    }
+
+    private static String urlEncode(String value)
+    {
+        try {
+            return URLEncoder.encode(value, "UTF-8");
+        }
+        catch (UnsupportedEncodingException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    private static String urlDecode(String value)
+    {
+        try {
+            return URLDecoder.decode(value, "UTF-8");
+        }
+        catch (UnsupportedEncodingException e) {
+            throw new AssertionError(e);
+        }
     }
 
     private Request buildQueryRequest(ClientSession session, String query)
@@ -398,9 +417,9 @@ class StatementClientV2
             try {
                 Iterable<FlightInfo> flightInfos = flightClient.listFlights(Criteria.ALL);
                 System.out.println(flightInfos.iterator().next().toString());
-                try (final FlightStream s = flightClient.getStream(new Ticket(request.url().toString().getBytes()))) {
+                try (final FlightStream s = flightClient.getStream(new Ticket(request.url().toString().getBytes(UTF_8)))) {
                     while (s.next()) {
-                        System.out.println(s.getRoot().getRowCount());
+//                        System.out.println(s.getRoot().getRowCount());
                     }
                 }
                 catch (Exception e) {
@@ -521,26 +540,6 @@ class StatementClientV2
         }
         catch (IOException ignored) {
             // callers expect this method not to throw
-        }
-    }
-
-    private static String urlEncode(String value)
-    {
-        try {
-            return URLEncoder.encode(value, "UTF-8");
-        }
-        catch (UnsupportedEncodingException e) {
-            throw new AssertionError(e);
-        }
-    }
-
-    private static String urlDecode(String value)
-    {
-        try {
-            return URLDecoder.decode(value, "UTF-8");
-        }
-        catch (UnsupportedEncodingException e) {
-            throw new AssertionError(e);
         }
     }
 

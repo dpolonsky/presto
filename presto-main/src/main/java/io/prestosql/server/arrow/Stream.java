@@ -1,3 +1,16 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.prestosql.server.arrow;
 
 import com.google.common.base.Throwables;
@@ -22,7 +35,6 @@ import java.util.function.Consumer;
 public class Stream
         implements AutoCloseable, Iterable<ArrowRecordBatch>
 {
-
     private final String uuid = UUID.randomUUID().toString();
     private final DictionaryProvider dictionaryProvider;
     private final List<ArrowRecordBatch> batches;
@@ -32,8 +44,8 @@ public class Stream
     /**
      * Create a new instance.
      *
-     * @param schema      The schema for the record batches.
-     * @param batches     The data associated with the stream.
+     * @param schema The schema for the record batches.
+     * @param batches The data associated with the stream.
      * @param recordCount The total record count across all batches.
      */
     public Stream(
@@ -116,21 +128,20 @@ public class Stream
      */
     public static class StreamCreator
     {
-
         private final Schema schema;
         private final BufferAllocator allocator;
         private final List<ArrowRecordBatch> batches = new ArrayList<>();
         private final Consumer<io.prestosql.server.arrow.Stream> committer;
-        private long recordCount = 0;
+        private long recordCount;
         private DictionaryProvider dictionaryProvider;
 
         /**
          * Creates a new instance.
          *
-         * @param schema             The schema for batches in the stream.
+         * @param schema The schema for batches in the stream.
          * @param dictionaryProvider The dictionary provider for the stream.
-         * @param allocator          The allocator used to copy data permanently into the stream.
-         * @param committer          A callback for when the stream is ready to be finalized (no more batches).
+         * @param allocator The allocator used to copy data permanently into the stream.
+         * @param committer A callback for when the stream is ready to be finalized (no more batches).
          */
         public StreamCreator(Schema schema, DictionaryProvider dictionaryProvider,
                 BufferAllocator allocator, Consumer<io.prestosql.server.arrow.Stream> committer)

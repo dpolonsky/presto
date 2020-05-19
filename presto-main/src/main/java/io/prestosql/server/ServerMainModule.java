@@ -37,7 +37,6 @@ import io.prestosql.client.ServerInfo;
 import io.prestosql.connector.ConnectorManager;
 import io.prestosql.connector.system.SystemConnectorModule;
 import io.prestosql.dispatcher.DispatchManager;
-import io.prestosql.dispatcher.DispatcherConfig;
 import io.prestosql.event.SplitMonitor;
 import io.prestosql.execution.ExecutionFailureInfo;
 import io.prestosql.execution.ExplainAnalyzeContext;
@@ -88,12 +87,12 @@ import io.prestosql.operator.LookupJoinOperators;
 import io.prestosql.operator.OperatorStats;
 import io.prestosql.operator.PagesIndex;
 import io.prestosql.operator.index.IndexJoinLookupStats;
-import io.prestosql.server.arrow.ArrowFlightServer;
-import io.prestosql.server.arrow.ArrowServerConfig;
 import io.prestosql.server.ExpressionSerialization.ExpressionDeserializer;
 import io.prestosql.server.ExpressionSerialization.ExpressionSerializer;
 import io.prestosql.server.SliceSerialization.SliceDeserializer;
 import io.prestosql.server.SliceSerialization.SliceSerializer;
+import io.prestosql.server.arrow.ArrowFlightServer;
+import io.prestosql.server.arrow.ArrowServerConfig;
 import io.prestosql.server.remotetask.HttpLocationFactory;
 import io.prestosql.spi.PageIndexerFactory;
 import io.prestosql.spi.PageSorter;
@@ -164,6 +163,45 @@ import static org.weakref.jmx.guice.ExportBinder.newExporter;
 public class ServerMainModule
         extends AbstractConfigurationAwareModule
 {
+    @Provides
+    @Singleton
+    @ForExchange
+    public static ScheduledExecutorService createExchangeExecutor(ExchangeClientConfig config)
+    {
+        return newScheduledThreadPool(config.getClientThreads(), daemonThreadsNamed("exchange-client-%s"));
+    }
+
+    @Provides
+    @Singleton
+    @ForAsyncHttp
+    public static ExecutorService createAsyncHttpResponseCoreExecutor()
+    {
+        return newCachedThreadPool(daemonThreadsNamed("async-http-response-%s"));
+    }
+
+    @Provides
+    @Singleton
+    @ForAsyncHttp
+    public static BoundedExecutor createAsyncHttpResponseExecutor(@ForAsyncHttp ExecutorService coreExecutor, TaskManagerConfig config)
+    {
+        return new BoundedExecutor(coreExecutor, config.getHttpResponseThreads());
+    }
+
+    @Provides
+    @Singleton
+    @ForAsyncHttp
+    public static ScheduledExecutorService createAsyncHttpTimeoutExecutor(TaskManagerConfig config)
+    {
+        return newScheduledThreadPool(config.getHttpTimeoutThreads(), daemonThreadsNamed("async-http-timeout-%s"));
+    }
+
+    @Provides
+    @Singleton
+    public static BlockEncodingSerde createBlockEncodingSerde(Metadata metadata)
+    {
+        return metadata.getBlockEncodingSerde();
+    }
+
     @Override
     protected void setup(Binder binder)
     {
@@ -437,45 +475,6 @@ public class ServerMainModule
 
         // cleanup
         binder.bind(ExecutorCleanup.class).in(Scopes.SINGLETON);
-    }
-
-    @Provides
-    @Singleton
-    @ForExchange
-    public static ScheduledExecutorService createExchangeExecutor(ExchangeClientConfig config)
-    {
-        return newScheduledThreadPool(config.getClientThreads(), daemonThreadsNamed("exchange-client-%s"));
-    }
-
-    @Provides
-    @Singleton
-    @ForAsyncHttp
-    public static ExecutorService createAsyncHttpResponseCoreExecutor()
-    {
-        return newCachedThreadPool(daemonThreadsNamed("async-http-response-%s"));
-    }
-
-    @Provides
-    @Singleton
-    @ForAsyncHttp
-    public static BoundedExecutor createAsyncHttpResponseExecutor(@ForAsyncHttp ExecutorService coreExecutor, TaskManagerConfig config)
-    {
-        return new BoundedExecutor(coreExecutor, config.getHttpResponseThreads());
-    }
-
-    @Provides
-    @Singleton
-    @ForAsyncHttp
-    public static ScheduledExecutorService createAsyncHttpTimeoutExecutor(TaskManagerConfig config)
-    {
-        return newScheduledThreadPool(config.getHttpTimeoutThreads(), daemonThreadsNamed("async-http-timeout-%s"));
-    }
-
-    @Provides
-    @Singleton
-    public static BlockEncodingSerde createBlockEncodingSerde(Metadata metadata)
-    {
-        return metadata.getBlockEncodingSerde();
     }
 
     public static class ExecutorCleanup

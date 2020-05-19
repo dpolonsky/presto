@@ -47,21 +47,31 @@ public class PrestoDriver
     private static String disableArrowResultFormatMessage;
     private final OkHttpClient httpClient = newHttpClient();
 
-    /**
-     * try to initialize Arrow support
-     * if fails, JDBC is going to use the legacy format
-     */
-    private static void initializeArrowSupport()
-    {
+    static {
+        String version = nullToEmpty(PrestoDriver.class.getPackage().getImplementationVersion());
+        Matcher matcher = Pattern.compile("^(\\d+)(\\.(\\d+))?($|[.-])").matcher(version);
+        if (!matcher.find()) {
+            DRIVER_VERSION = "unknown";
+            DRIVER_VERSION_MAJOR = 0;
+            DRIVER_VERSION_MINOR = 0;
+        }
+        else {
+            DRIVER_VERSION = version;
+            DRIVER_VERSION_MAJOR = parseInt(matcher.group(1));
+            DRIVER_VERSION_MINOR = parseInt(firstNonNull(matcher.group(3), "0"));
+        }
+
         try {
             // this is required to enable direct memory usage for Arrow buffers in Java
             disableArrowResultFormat = false;
             System.setProperty("io.netty.tryReflectionSetAccessible", "true");
+            DriverManager.registerDriver(new PrestoDriver());
         }
         catch (Throwable t) {
             // fail to enable required feature for Arrow
             disableArrowResultFormat = true;
             disableArrowResultFormatMessage = t.getLocalizedMessage();
+            throw new RuntimeException(t);
         }
     }
 

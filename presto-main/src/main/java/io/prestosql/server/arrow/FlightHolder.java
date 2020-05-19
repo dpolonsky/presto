@@ -1,12 +1,20 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.prestosql.server.arrow;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.stream.Collectors;
-
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightEndpoint;
 import org.apache.arrow.flight.FlightInfo;
@@ -18,11 +26,16 @@ import org.apache.arrow.vector.dictionary.DictionaryProvider;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.DictionaryUtility;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
 
-public class FlightHolder implements AutoCloseable {
-
+public class FlightHolder
+        implements AutoCloseable
+{
     private final BufferAllocator allocator;
     private final FlightDescriptor descriptor;
     private final Schema schema;
@@ -31,13 +44,15 @@ public class FlightHolder implements AutoCloseable {
 
     /**
      * Creates a new instance.
-     *  @param allocator The allocator to use for allocating buffers to store data.
+     *
+     * @param allocator The allocator to use for allocating buffers to store data.
      * @param descriptor The descriptor for the streams.
-     * @param schema  The schema for the stream.
+     * @param schema The schema for the stream.
      * @param dictionaryProvider The dictionary provider for the stream.
      */
     public FlightHolder(BufferAllocator allocator, FlightDescriptor descriptor, Schema schema,
-            DictionaryProvider dictionaryProvider) {
+            DictionaryProvider dictionaryProvider)
+    {
         Preconditions.checkArgument(!descriptor.isCommand());
         this.allocator = allocator.newChildAllocator(descriptor.toString(), 0, Long.MAX_VALUE);
         this.descriptor = descriptor;
@@ -48,7 +63,8 @@ public class FlightHolder implements AutoCloseable {
     /**
      * Returns the stream based on the ordinal of QueryTicket.
      */
-    public Stream getStream(QueryTicket ticket) {
+    public Stream getStream(QueryTicket ticket)
+    {
         Preconditions.checkArgument(ticket.getOrdinal() < streams.size(), "Unknown stream.");
         Stream stream = streams.get(ticket.getOrdinal());
         stream.verify(ticket);
@@ -58,7 +74,8 @@ public class FlightHolder implements AutoCloseable {
     /**
      * Adds a new streams which clients can populate via the returned object.
      */
-    public Stream.StreamCreator addStream(Schema schema) {
+    public Stream.StreamCreator addStream(Schema schema)
+    {
         Preconditions.checkArgument(this.schema.equals(schema), "Stream schema inconsistent with existing schema.");
         return new Stream.StreamCreator(schema, dictionaryProvider, allocator, t -> {
             synchronized (streams) {
@@ -70,7 +87,8 @@ public class FlightHolder implements AutoCloseable {
     /**
      * List all available streams as being available at <code>l</code>.
      */
-    public FlightInfo getFlightInfo(final Location l) {
+    public FlightInfo getFlightInfo(final Location l)
+    {
         final long bytes = allocator.getAllocatedMemory();
         final long records = streams.stream().collect(Collectors.summingLong(t -> t.getRecordCount()));
 
@@ -88,7 +106,9 @@ public class FlightHolder implements AutoCloseable {
     }
 
     @Override
-    public void close() throws Exception {
+    public void close()
+            throws Exception
+    {
         // Close dictionaries
         final Set<Long> dictionaryIds = new HashSet<>();
         schema.getFields().forEach(field -> DictionaryUtility.toMessageFormat(field, dictionaryProvider, dictionaryIds));

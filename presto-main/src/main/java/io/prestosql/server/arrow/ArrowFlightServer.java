@@ -1,3 +1,16 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.prestosql.server.arrow;
 
 import com.google.inject.Inject;
@@ -17,14 +30,13 @@ public class ArrowFlightServer
         implements AutoCloseable
 {
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ArrowFlightServer.class);
-    public static int DEFAULT_ARROW_FLIGHT_PORT = 47470;
-
-    private QueuedStatementResource queuedStatementResource;
+    public static int defaultArrowFlightPort = 47470;
     private final FlightServer flightServer;
     private final ArrowServerConfig arrowServerConfig;
     private final InMemoryStore mem;
     private final RootAllocator allocator;
     private final Location location;
+    private QueuedStatementResource queuedStatementResource;
 
     /**
      * Constructs a new instance using Allocator for allocating buffer storage that binds
@@ -54,7 +66,7 @@ public class ArrowFlightServer
             throws Exception
     {
         ArrowServerConfig arrowServerConfig = new ArrowServerConfig();
-        arrowServerConfig.setArrowServerPort(DEFAULT_ARROW_FLIGHT_PORT);
+        arrowServerConfig.setArrowServerPort(defaultArrowFlightPort);
         final ArrowFlightServer efs = new ArrowFlightServer(arrowServerConfig, null);
         efs.start();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -67,6 +79,16 @@ public class ArrowFlightServer
             }
         }));
         efs.awaitTermination();
+    }
+
+    private static String getLocalCanonicalHostName()
+    {
+        try {
+            return InetAddress.getLocalHost().getCanonicalHostName().toLowerCase(Locale.US);
+        }
+        catch (UnknownHostException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     public Location getLocation()
@@ -96,15 +118,5 @@ public class ArrowFlightServer
             throws Exception
     {
         AutoCloseables.close(mem, flightServer, allocator);
-    }
-
-    private static String getLocalCanonicalHostName()
-    {
-        try {
-            return InetAddress.getLocalHost().getCanonicalHostName().toLowerCase(Locale.US);
-        }
-        catch (UnknownHostException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 }
